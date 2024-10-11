@@ -1,7 +1,7 @@
 import { CSSProperties, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@chakra-ui/react';
-import { CustomFieldLabel, CustomFieldType, isOntimeEvent, OntimeEvent } from 'ontime-types';
+import { CustomFieldLabel, isOntimeEvent, OntimeEvent } from 'ontime-types';
 
 import CopyTag from '../../../common/components/copy-tag/CopyTag';
 import { useEventAction } from '../../../common/hooks/useEventAction';
@@ -125,7 +125,6 @@ export default function EventEditor() {
                 initialValue={initialValue}
                 submitHandler={handleSubmit}
                 className={style.decorated}
-                isMarkdown={customFields[fieldKey].type === CustomFieldType.Markdown}
                 style={{ '--decorator-bg': backgroundColor, '--decorator-color': color } as CSSProperties}
               />
             );

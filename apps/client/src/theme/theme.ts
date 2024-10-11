@@ -9,7 +9,7 @@ import {
   ontimeButtonSubtle,
   ontimeButtonSubtleWhite,
 } from './ontimeButton';
-import { ontimeCheckboxOnDark, ontimeCheckboxWhite } from './ontimeCheckbox';
+import { ontimeCheckboxOnDark } from './ontimeCheckbox';
 import { ontimeDrawer } from './ontimeDrawer';
 import { ontimeEditable } from './ontimeEditable';
 import { ontimeMenuOnDark } from './ontimeMenu';
@@ -19,7 +19,6 @@ import { ontimeSelect } from './ontimeSelect';
 import { ontimeSwitch } from './ontimeSwitch';
 import { ontimeTab } from './ontimeTab';
 import {
-  containerStyles,
   ontimeInputFilled,
   ontimeInputGhosted,
   ontimeTextAreaFilled,
@@ -59,7 +58,6 @@ const theme = extendTheme({
     Checkbox: {
       variants: {
         'ontime-ondark': { ...ontimeCheckboxOnDark },
-        'ontime-subtle-white': { ...ontimeCheckboxWhite },
       },
     },
     Drawer: {
@@ -125,10 +123,6 @@ const theme = extendTheme({
         'ontime-filled': { ...ontimeTextAreaFilled },
         'ontime-transparent': { ...ontimeTextAreaTransparent },
       },
-    },
-    Container: {
-      'ontime-filled': { ...containerStyles },
-      'ontime-transparent': { ...containerStyles },
     },
     Tooltip: {
       baseStyle: { ...ontimeTooltip },
