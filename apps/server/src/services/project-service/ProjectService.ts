@@ -51,6 +51,13 @@ function init() {
   ensureDirectory(resolveCorruptDirectory);
 }
 
+export async function getCurrentProject() {
+  const filename = await getLastLoadedProject();
+  const pathToFile = getPathToProject(filename);
+
+  return { filename, pathToFile };
+}
+
 /**
  * Private function loads a demo project
  * to be composed in the loading functions
@@ -172,7 +179,7 @@ export async function loadProjectFile(name: string) {
   const { rundown, customFields, osc, http } = result.data;
 
   // apply the rundown
-  initRundown(rundown, customFields);
+  await initRundown(rundown, customFields);
 
   // apply integrations
   oscIntegration.init(osc);
@@ -246,7 +253,7 @@ export async function renameProjectFile(originalFile: string, newFilename: strin
     const { rundown, customFields, osc, http } = result.data;
 
     // apply the rundown
-    initRundown(rundown, customFields);
+    await initRundown(rundown, customFields);
 
     // apply integrations
     oscIntegration.init(osc);
@@ -334,7 +341,7 @@ export async function patchCurrentProject(data: Partial<DatabaseModel>) {
   // ... but rundown and custom fields need to be checked
   if (rundown != null) {
     const result = parseRundown(data);
-    initRundown(result.rundown, result.customFields);
+    await initRundown(result.rundown, result.customFields);
   }
 
   return newData;
