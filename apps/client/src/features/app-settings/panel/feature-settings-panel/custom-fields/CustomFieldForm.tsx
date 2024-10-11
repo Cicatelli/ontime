@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Button, Input, Select } from '@chakra-ui/react';
-import { CustomField, CustomFieldType } from 'ontime-types';
+import { Button, Input } from '@chakra-ui/react';
+import { CustomField } from 'ontime-types';
 import { isAlphanumeric } from 'ontime-utils';
 
 import { maybeAxiosError } from '../../../../../common/api/utils';
@@ -15,11 +15,10 @@ interface CustomFieldsFormProps {
   onCancel: () => void;
   initialColour?: string;
   initialLabel?: string;
-  initialType?: CustomFieldType;
 }
 
 export default function CustomFieldForm(props: CustomFieldsFormProps) {
-  const { onSubmit, onCancel, initialColour, initialLabel, initialType } = props;
+  const { onSubmit, onCancel, initialColour, initialLabel } = props;
   // we use this to force an update
   const [_, setColour] = useState(initialColour || '');
 
@@ -32,20 +31,16 @@ export default function CustomFieldForm(props: CustomFieldsFormProps) {
     getValues,
     formState: { errors, isSubmitting, isValid, isDirty },
   } = useForm({
-    defaultValues: {
-      label: initialLabel || '',
-      colour: initialColour || '',
-      type: initialType || CustomFieldType.String,
-    },
+    defaultValues: { label: initialLabel || '', colour: initialColour || '' },
     resetOptions: {
       keepDirtyValues: true,
     },
   });
 
-  const setupSubmit = async (values: { label: string; colour: string; type: CustomFieldType }) => {
-    const { label, colour, type } = values;
+  const setupSubmit = async (values: { label: string; colour: string }) => {
+    const { label, colour } = values;
     const newField: CustomField = {
-      type,
+      type: 'string', // type is not user definable yet
       colour,
       label,
     };
@@ -92,13 +87,6 @@ export default function CustomFieldForm(props: CustomFieldsFormProps) {
       <div>
         <Panel.Description>Colour</Panel.Description>
         <SwatchSelect name='colour' value={colour} handleChange={(_field, value) => handleSelectColour(value)} />
-      </div>
-      <div>
-        <Panel.Description>Type</Panel.Description>
-        <Select size='sm' variant='ontime' {...register('type')}>
-          <option value={CustomFieldType.String}>string</option>
-          <option value={CustomFieldType.Markdown}>markdown</option>
-        </Select>
       </div>
       {errors.root && <Panel.Error>{errors.root.message}</Panel.Error>}
       <div className={style.buttonRow}>

@@ -35,7 +35,6 @@ export type {
   CustomFieldLabel,
   EventCustomFields,
 } from './definitions/core/CustomFields.type.js';
-export { CustomFieldType } from './definitions/core/CustomFields.type.js';
 
 // ---> Integration, Subscription
 export type { OSCSettings, OscSubscription } from './definitions/core/OscSettings.type.js';

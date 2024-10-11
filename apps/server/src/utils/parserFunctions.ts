@@ -1,6 +1,5 @@
 import {
   CustomField,
-  CustomFieldType,
   CustomFields,
   DatabaseModel,
   HttpSettings,
@@ -314,7 +313,7 @@ export function sanitiseCustomFields(data: object): CustomFields {
     }
 
     newCustomFields[key] = {
-      type: field.type,
+      type: 'string',
       colour: field.colour,
       label: field.label,
     };
@@ -327,10 +326,7 @@ export function sanitiseCustomFields(data: object): CustomFields {
       'label' in data &&
       data.label !== '' &&
       'colour' in data &&
-      typeof data.colour === 'string' &&
-      'type' in data &&
-      typeof data.type === 'string' &&
-      (data.type === CustomFieldType.String || data.type === CustomFieldType.Markdown)
+      typeof data.colour === 'string'
     );
   }
 

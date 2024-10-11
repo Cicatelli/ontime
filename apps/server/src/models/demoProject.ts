@@ -1,4 +1,4 @@
-import { CustomFieldType, DatabaseModel, EndAction, SupportedEvent, TimeStrategy, TimerType } from 'ontime-types';
+import { DatabaseModel, EndAction, SupportedEvent, TimeStrategy, TimerType } from 'ontime-types';
 
 export const demoDb: DatabaseModel = {
   rundown: [
@@ -378,12 +378,12 @@ export const demoDb: DatabaseModel = {
   customFields: {
     song: {
       label: 'Song',
-      type: CustomFieldType.String,
+      type: 'string',
       colour: '#339E4E',
     },
     artist: {
       label: 'Artist',
-      type: CustomFieldType.String,
+      type: 'string',
       colour: '#3E75E8',
     },
   },
