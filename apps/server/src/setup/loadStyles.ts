@@ -10,14 +10,12 @@ import { publicDir, publicFiles, srcFiles } from './index.js';
 export const populateStyles = () => {
   ensureDirectory(publicDir.stylesDir);
   // if styles doesn't exist we want to use startup stylesheet
-  try {
-    copyFileSync(srcFiles.userReadme, publicFiles.userReadme);
-    copyFileSync(srcFiles.cssReadme, publicFiles.cssReadme);
-    if (!existsSync(publicFiles.cssOverride)) {
-      // copy the startup stylesheet only if user doesnt have one
+  if (!existsSync(publicFiles.cssOverride)) {
+    try {
+      // copy the startup stylesheet to the public directory
       copyFileSync(srcFiles.cssOverride, publicFiles.cssOverride);
+    } catch (_) {
+      /* we do not handle this */
     }
-  } catch (_) {
-    /* we do not handle this */
   }
 };

@@ -21,6 +21,8 @@ import EventBlockPlayback from './composite/EventBlockPlayback';
 import EventBlockProgressBar from './composite/EventBlockProgressBar';
 
 import style from './EventBlock.module.scss';
+import { useTranslation } from '../../../translation/TranslationProvider';
+
 
 interface EventBlockInnerProps {
   timeStart: number;
@@ -80,6 +82,9 @@ const EventBlockInner = (props: EventBlockInnerProps) => {
     playBtnStyles._hover = {};
   }
 
+  const { getLocalizedString } = useTranslation();
+
+
   return !renderInner ? null : (
     <>
       <div className={style.eventTimers}>
@@ -96,7 +101,7 @@ const EventBlockInner = (props: EventBlockInnerProps) => {
       </div>
       <div className={style.titleSection}>
         <EditableBlockTitle title={title} eventId={eventId} placeholder='Event title' className={style.eventTitle} />
-        {isNext && <span className={style.nextTag}>UP NEXT</span>}
+        {isNext && <span className={style.nextTag}>{getLocalizedString('editor.upnext')} </span>}
       </div>
       <EventBlockPlayback
         eventId={eventId}
