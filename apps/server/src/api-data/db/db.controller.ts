@@ -1,11 +1,4 @@
-import {
-  DatabaseModel,
-  ErrorResponse,
-  GetInfo,
-  MessageResponse,
-  ProjectData,
-  ProjectFileListResponse,
-} from 'ontime-types';
+import { DatabaseModel, ErrorResponse, MessageResponse, ProjectFileListResponse } from 'ontime-types';
 import { getErrorMessage } from 'ontime-utils';
 
 import type { Request, Response } from 'express';
@@ -37,20 +30,35 @@ export async function patchPartialProjectFile(req: Request, res: Response<Databa
  *                         or a 500 status with an error message in case of an exception.
  */
 export async function createProjectFile(req: Request, res: Response<{ filename: string } | ErrorResponse>) {
-  const newProjectData: ProjectData = {
-    title: req.body?.title ?? '',
-    description: req.body?.description ?? '',
-    publicUrl: req.body?.publicUrl ?? '',
-    publicInfo: req.body?.publicInfo ?? '',
-    backstageUrl: req.body?.backstageUrl ?? '',
-    backstageInfo: req.body?.backstageInfo ?? '',
-  };
-
   try {
-    const newFileName = await projectService.createProject(req.body.filename, newProjectData);
+    const newFileName = await projectService.createProject(req.body.filename, {
+      project: {
+        title: req.body?.title ?? '',
+        description: req.body?.description ?? '',
+        publicUrl: req.body?.publicUrl ?? '',
+        publicInfo: req.body?.publicInfo ?? '',
+        backstageUrl: req.body?.backstageUrl ?? '',
+        backstageInfo: req.body?.backstageInfo ?? '',
+      },
+    });
 
     res.status(200).send({
       filename: newFileName,
+    });
+  } catch (error) {
+    const message = getErrorMessage(error);
+    res.status(500).send({ message });
+  }
+}
+
+/**
+ * Creates and loads a new project with partial DataBase data
+ */
+export async function quickProjectFile(req: Request, res: Response<{ filename: string } | ErrorResponse>) {
+  try {
+    const filename = await projectService.createProject(req.body.project.title, req.body);
+    res.status(200).send({
+      filename,
     });
   } catch (error) {
     const message = getErrorMessage(error);
@@ -238,16 +246,6 @@ export async function deleteProjectFile(req: Request, res: Response<MessageRespo
       return res.status(404).send({ message });
     }
 
-    res.status(500).send({ message });
-  }
-}
-
-export async function getInfo(_req: Request, res: Response<GetInfo | ErrorResponse>) {
-  try {
-    const info = await projectService.getInfo();
-    res.status(200).send(info);
-  } catch (error) {
-    const message = getErrorMessage(error);
     res.status(500).send({ message });
   }
 }

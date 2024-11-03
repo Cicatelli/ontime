@@ -44,6 +44,15 @@ export function getAppDataPath(): string {
 /**
  * 1. Paths relative to the installation (or source in development)
  * ------------------------------------------------------------------
+ * src/
+ * ├─ projects/
+ * ├─ external/
+ * │  ├─ demo/
+ * ├─ user/
+ * │  ├─ styles/
+ * │  │  ├─ override.css
+ * │  ├─ logo/
+ * │  │  ├─ logo.png
  */
 
 /** resolve file URL in both CJS and ESM (build and dev) */
@@ -64,12 +73,18 @@ export const srcDir = {
   /** Path to the react app */
   clientDir: isProduction ? join(srcDirectory, 'client/') : join(srcDirectory, '../../client/build/'),
   /** Path to the demo app */
-  demoDir: join(srcDirectory, '/external/demo/'),
+  demoDir: join(srcDirectory, 'external', config.demo),
 } as const;
 
 export const srcFiles = {
   /** Path to bundled CSS  */
-  cssOverride: join(srcDir.root, '/external/styles/', config.styles.filename),
+  cssOverride: join(srcDir.root, config.user, config.styles.directory, config.styles.filename),
+  /** Path to bundled external readme */
+  externalReadme: join(srcDir.root, config.external, 'README.md'),
+  /** Path to bundled user readme */
+  userReadme: join(srcDir.root, config.user, 'README.md'),
+  /** Path to bundled CSS readme */
+  cssReadme: join(srcDir.root, config.user, config.styles.directory, 'README.md'),
 };
 
 /**
@@ -91,8 +106,6 @@ const externalsStartDirectory = isProduction ? resolvePublicDirectory : join(src
 
 export const publicDir = {
   root: resolvePublicDirectory,
-  /** path to sheets folder */
-  sheetsDir: join(resolvePublicDirectory, config.sheets.directory),
   /** path to crash reports folder */
   crashDir: join(resolvePublicDirectory, config.crash),
   /** path to projects folder */
@@ -102,15 +115,20 @@ export const publicDir = {
   /** path to uploads folder */
   uploadsDir: join(resolvePublicDirectory, config.uploads),
   /** path to external folder */
-  externalDir: externalsStartDirectory,
+  externalDir: join(
+    externalsStartDirectory,
+    isProduction ? config.external : '', // move to external folder in production
+  ),
   /** path to demo project folder */
   demoDir: join(
     externalsStartDirectory,
     isProduction ? '/external/' : '', // move to external folder in production
-    config.demo.directory,
+    config.demo,
   ),
+  /** path to user folder */
+  userDir: join(resolvePublicDirectory, config.user),
   /** path to external styles override */
-  stylesDir: join(externalsStartDirectory, config.styles.directory),
+  stylesDir: join(resolvePublicDirectory, config.user, config.styles.directory),
 } as const;
 
 /**
@@ -123,4 +141,10 @@ export const publicFiles = {
   restoreFile: join(publicDir.root, config.restoreFile),
   /** path to CSS override file */
   cssOverride: join(publicDir.stylesDir, config.styles.filename),
-};
+  /** path to external readme file */
+  externalReadme: join(publicDir.externalDir, 'README.md'),
+  /** path to user readme file */
+  userReadme: join(publicDir.userDir, 'README.md'),
+  /** path to CSS readme file */
+  cssReadme: join(publicDir.stylesDir, 'README.md'),
+} as const;

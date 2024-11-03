@@ -6,7 +6,7 @@ import { IoAdd } from '@react-icons/all-files/io5/IoAdd';
 import { uploadProjectFile } from '../../../../common/api/db';
 import { invalidateAllCaches, maybeAxiosError } from '../../../../common/api/utils';
 import { validateProjectFile } from '../../../../common/utils/uploadUtils';
-import * as Panel from '../PanelUtils';
+import * as Panel from '../../panel-utils/PanelUtils';
 
 import ProjectCreateForm from './ProjectCreateForm';
 import ProjectList from './ProjectList';
@@ -20,10 +20,10 @@ export default function ManageProjects() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isCreatingProject = searchParams.get('create') === 'true';
+  const isCreatingProject = searchParams.get('new') === 'true';
 
   const handleToggleCreate = () => {
-    searchParams.set('create', isCreatingProject ? 'false' : 'true');
+    searchParams.set('new', isCreatingProject ? 'false' : 'true');
     setSearchParams(searchParams);
   };
 
@@ -53,7 +53,7 @@ export default function ManageProjects() {
   };
 
   const handleCloseForm = () => {
-    searchParams.delete('create');
+    searchParams.delete('new');
     setSearchParams(searchParams);
   };
 

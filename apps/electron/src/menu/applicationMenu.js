@@ -81,14 +81,18 @@ function makeFileMenu(serverUrl, redirectWindow, download) {
     submenu: [
       {
         label: 'New project...',
-        click: () => redirectWindow('/editor?settings=project__manage&create=true'),
+        click: () => redirectWindow('/editor?settings=project__manage&new=true'),
       },
       {
-        label: 'Edit project info',
+        label: 'Quick start...',
+        click: () => redirectWindow('/editor?settings=project__create'),
+      },
+      {
+        label: 'Edit project info...',
         click: () => redirectWindow('/editor?settings=project__data'),
       },
       {
-        label: 'Manage projects...',
+        label: 'Manage projects',
         click: () => redirectWindow('/editor?settings=project__manage'),
       },
       {
@@ -140,7 +144,10 @@ function makeViewMenu(clientUrl) {
       { role: 'forceReload' },
       { type: 'separator' },
       { role: 'resetZoom' },
-      { role: 'zoomIn' },
+      // NOTE: I still contend this zoomin mess is an electron bug
+      { role: 'zoomIn', accelerator: 'CmdOrCtrl+Plus' },
+      { role: 'zoomIn', accelerator: 'CmdOrCtrl+=', visible: false },
+      { role: 'zoomIn', accelerator: 'CmdOrCtrl+numadd', visible: false },
       { role: 'zoomOut' },
       { type: 'separator' },
       { role: 'togglefullscreen' },

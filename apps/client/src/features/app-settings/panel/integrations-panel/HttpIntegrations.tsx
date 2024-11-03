@@ -9,7 +9,7 @@ import { maybeAxiosError } from '../../../../common/api/utils';
 import { useHttpSettings, usePostHttpSettings } from '../../../../common/hooks-query/useHttpSettings';
 import { isKeyEscape } from '../../../../common/utils/keyEvent';
 import { startsWithHttp } from '../../../../common/utils/regex';
-import * as Panel from '../PanelUtils';
+import * as Panel from '../../panel-utils/PanelUtils';
 
 import { cycles } from './integrationUtils';
 
@@ -27,7 +27,7 @@ export default function HttpIntegrations() {
     setError,
     formState: { errors, isSubmitting, isDirty, isValid },
   } = useForm<HttpSettings>({
-    mode: 'onBlur',
+    mode: 'onChange',
     defaultValues: data,
     values: data,
     resetOptions: {
@@ -60,7 +60,7 @@ export default function HttpIntegrations() {
       id: generateId(),
       cycle: 'onLoad',
       message: '',
-      enabled: false,
+      enabled: true,
     });
   };
 

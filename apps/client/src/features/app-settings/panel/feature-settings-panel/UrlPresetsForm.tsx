@@ -13,7 +13,7 @@ import ExternalLink from '../../../../common/components/external-link/ExternalLi
 import useUrlPresets from '../../../../common/hooks-query/useUrlPresets';
 import { handleLinks } from '../../../../common/utils/linkUtils';
 import { validateUrlPresetPath } from '../../../../common/utils/urlPresets';
-import * as Panel from '../PanelUtils';
+import * as Panel from '../../panel-utils/PanelUtils';
 
 import style from './FeatureSettings.module.scss';
 
@@ -33,7 +33,7 @@ export default function UrlPresetsForm() {
     setError,
     formState: { isSubmitting, isDirty, isValid, errors },
   } = useForm<FormData>({
-    mode: 'onBlur',
+    mode: 'onChange',
     defaultValues: { data },
     values: { data },
     resetOptions: {
@@ -78,7 +78,7 @@ export default function UrlPresetsForm() {
 
   const addNew = () => {
     prepend({
-      enabled: false,
+      enabled: true,
       alias: '',
       pathAndParams: '',
     });
