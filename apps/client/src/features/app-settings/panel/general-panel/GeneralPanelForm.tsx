@@ -7,7 +7,7 @@ import { postSettings } from '../../../../common/api/settings';
 import { maybeAxiosError } from '../../../../common/api/utils';
 import useSettings from '../../../../common/hooks-query/useSettings';
 import { isOnlyNumbers } from '../../../../common/utils/regex';
-import * as Panel from '../../panel-utils/PanelUtils';
+import * as Panel from '../PanelUtils';
 
 import GeneralPinInput from './GeneralPinInput';
 
@@ -152,9 +152,10 @@ export default function GeneralPanelForm() {
                 <option value='it'>Italian</option>
                 <option value='no'>Norwegian</option>
                 <option value='pt'>Portuguese</option>
+                <option value='ptbr'>Português Brasil</option>
                 <option value='es'>Spanish</option>
                 <option value='sv'>Swedish</option>
-                <option value='pl'>Polish</option>
+		            <option value='pl'>Polish</option>
               </Select>
             </Panel.ListItem>
           </Panel.ListGroup>
