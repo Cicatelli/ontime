@@ -1,6 +1,8 @@
 import { Log, RundownCached, RuntimeStore } from 'ontime-types';
 
-import { CLIENT_LIST, CUSTOM_FIELDS, isProduction, RUNDOWN, RUNTIME, websocketUrl } from '../api/constants';
+import { isProduction, websocketUrl } from '../../externals';
+import { CLIENT_LIST, CUSTOM_FIELDS, RUNDOWN, RUNTIME } from '../api/constants';
+import { invalidateAllCaches } from '../api/utils';
 import { ontimeQueryClient } from '../queryClient';
 import {
   getClientId,
@@ -68,6 +70,12 @@ export const connectSocket = () => {
       }
 
       switch (type) {
+        case 'pong': {
+          const offset = (new Date().getTime() - new Date(payload).getTime()) * 0.5;
+          patchRuntime('ping', offset);
+          updateDevTools({ ping: offset }, ['PING']);
+          break;
+        }
         case 'client-id': {
           if (typeof payload === 'string') {
             setClientId(payload);
@@ -178,10 +186,12 @@ export const connectSocket = () => {
         }
         case 'ontime-refetch': {
           // the refetch message signals that the rundown has changed in the server side
-          const { revision } = payload;
+          const { revision, reload } = payload;
           const currentRevision = ontimeQueryClient.getQueryData<RundownCached>(RUNDOWN)?.revision ?? -1;
 
-          if (revision > currentRevision) {
+          if (reload) {
+            invalidateAllCaches();
+          } else if (revision > currentRevision) {
             ontimeQueryClient.invalidateQueries({ queryKey: RUNDOWN });
             ontimeQueryClient.invalidateQueries({ queryKey: CUSTOM_FIELDS });
           }
@@ -214,9 +224,9 @@ export const socketSendJson = (type: string, payload?: unknown) => {
   );
 };
 
-function updateDevTools(newData: Partial<RuntimeStore>) {
+function updateDevTools(newData: Partial<RuntimeStore>, store = RUNTIME) {
   if (!isProduction) {
-    ontimeQueryClient.setQueryData(RUNTIME, (oldData: RuntimeStore) => ({
+    ontimeQueryClient.setQueryData(store, (oldData: RuntimeStore) => ({
       ...oldData,
       ...newData,
     }));
