@@ -6,11 +6,10 @@ import { millisToString, parseUserTime } from 'ontime-utils';
 import TimeInput from '../../../../common/components/input/time-input/TimeInput';
 import { useEventAction } from '../../../../common/hooks/useEventAction';
 import { millisToDelayString } from '../../../../common/utils/dateConfig';
+import * as Editor from '../../../editors/editor-utils/EditorUtils';
 import TimeInputFlow from '../../time-input-flow/TimeInputFlow';
 
 import style from '../EventEditor.module.scss';
-import { useTranslation } from '../../../../translation/TranslationProvider';
-
 
 interface EventEditorTimesProps {
   eventId: string;
@@ -71,12 +70,10 @@ const EventEditorTimes = (props: EventEditorTimesProps) => {
       )} → ${millisToString(timeEnd + delay)}`
     : '';
 
-    const { getLocalizedString } = useTranslation();
-
   return (
     <div className={style.column}>
       <div>
-        <div className={style.inputLabel}>{getLocalizedString('editor.event_schedule')}</div>
+        <Editor.Label>Event schedule</Editor.Label>
         <div className={style.inline}>
           <TimeInputFlow
             eventId={eventId}
@@ -86,6 +83,7 @@ const EventEditorTimes = (props: EventEditorTimesProps) => {
             timeStrategy={timeStrategy}
             linkStart={linkStart}
             delay={delay}
+            timerType={timerType}
           />
         </div>
         <div className={style.delayLabel}>{delayLabel}</div>
@@ -93,57 +91,72 @@ const EventEditorTimes = (props: EventEditorTimesProps) => {
 
       <div className={style.splitTwo}>
         <div>
-          <label className={style.inputLabel} htmlFor='timeWarning'>
-          {getLocalizedString('editor.warning_time')}
-          </label>
-          <TimeInput name='timeWarning' submitHandler={handleSubmit} time={timeWarning} placeholder='Duration' />
+          <Editor.Label htmlFor='timeWarning'>Warning Time</Editor.Label>
+          <TimeInput
+            id='timeWarning'
+            name='timeWarning'
+            submitHandler={handleSubmit}
+            time={timeWarning}
+            placeholder='Duration'
+          />
         </div>
         <div>
-          <label className={style.inputLabel}>{getLocalizedString('editor.timer_type')}</label>
+          <Editor.Label htmlFor='timerType'>Timer Type</Editor.Label>
           <Select
             size='sm'
+            id='timerType'
             name='timerType'
             value={timerType}
             onChange={(event) => handleSubmit('timerType', event.target.value)}
             variant='ontime'
           >
-            <option value={TimerType.CountDown}>{getLocalizedString('timer.countdown')}</option>
-            <option value={TimerType.CountUp}>{getLocalizedString('timer.countup')}</option>
-            <option value={TimerType.TimeToEnd}>{getLocalizedString('timer.timetoend')}</option>
-            <option value={TimerType.Clock}>{getLocalizedString('timer.clock')}</option>
+            <option value={TimerType.CountDown}>Count down</option>
+            <option value={TimerType.CountUp}>Count up</option>
+            <option value={TimerType.TimeToEnd}>Time to end</option>
+            <option value={TimerType.Clock}>Clock</option>
+            <option value={TimerType.None}>None</option>
           </Select>
         </div>
         <div>
-          <label className={style.inputLabel} htmlFor='timeDanger'>
-          {getLocalizedString('editor.danger_time')}
-          </label>
-          <TimeInput name='timeDanger' submitHandler={handleSubmit} time={timeDanger} placeholder='Duration' />
+          <Editor.Label htmlFor='timeDanger'>Danger Time</Editor.Label>
+          <TimeInput
+            id='timeDanger'
+            name='timeDanger'
+            submitHandler={handleSubmit}
+            time={timeDanger}
+            placeholder='Duration'
+          />
         </div>
         <div>
-          <label className={style.inputLabel}>{getLocalizedString('editor.end_action')}</label>
+          <Editor.Label htmlFor='endAction'>End Action</Editor.Label>
           <Select
+            id='endAction'
             size='sm'
             name='endAction'
             value={endAction}
             onChange={(event) => handleSubmit('endAction', event.target.value)}
             variant='ontime'
           >
-            <option value={EndAction.None}>{getLocalizedString('endaction.none')}</option>
-            <option value={EndAction.Stop}>{getLocalizedString('endaction.stop')}</option>
-            <option value={EndAction.LoadNext}>{getLocalizedString('endaction.load')}</option>
-            <option value={EndAction.PlayNext}>{getLocalizedString('endaction.play')}</option>
+            <option value={EndAction.None}>None</option>
+            <option value={EndAction.Stop}>Stop</option>
+            <option value={EndAction.LoadNext}>Load Next</option>
+            <option value={EndAction.PlayNext}>Play Next</option>
           </Select>
         </div>
       </div>
 
       <div>
-        <span className={style.inputLabel}>{getLocalizedString('editor.event_visibility')}</span>
-        <label className={style.switchLabel}>
-          <Switch size='md' isChecked={isPublic} onChange={() => handleSubmit('isPublic', isPublic)} variant='ontime' />
-          {isPublic ? 'Public' : 'Private'} 
-          
-          
-        </label>
+        <Editor.Label htmlFor='isPublic'>Event Visibility</Editor.Label>
+        <Editor.Label className={style.switchLabel}>
+          <Switch
+            id='isPublic'
+            size='md'
+            isChecked={isPublic}
+            onChange={() => handleSubmit('isPublic', isPublic)}
+            variant='ontime'
+          />
+          {isPublic ? 'Public' : 'Private'}
+        </Editor.Label>
       </div>
     </div>
   );

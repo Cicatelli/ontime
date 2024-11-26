@@ -2,7 +2,6 @@ import { createContext, PropsWithChildren, useCallback, useContext } from 'react
 
 import useSettings from '../common/hooks-query/useSettings';
 
-import { langPtbr } from './languages/pt-br';
 import { langDe } from './languages/de';
 import { langEn } from './languages/en';
 import { langEs } from './languages/es';
@@ -13,7 +12,7 @@ import { langNo } from './languages/no';
 import { langPl } from './languages/pl';
 import { langPt } from './languages/pt';
 import { langSv } from './languages/sv';
-import { Playback } from 'ontime-types';
+import { langZhCn } from './languages/zh';
 
 const translationsList = {
   en: langEn,
@@ -26,7 +25,7 @@ const translationsList = {
   pt: langPt,
   sv: langSv,
   pl: langPl,
-  ptbr: langPtbr,
+  zh: langZhCn,
 };
 
 interface TranslationContextValue {
@@ -39,6 +38,8 @@ export const TranslationContext = createContext<TranslationContextValue>({
 
 export const TranslationProvider = ({ children }: PropsWithChildren) => {
   const { data } = useSettings();
+
+  console.log('....', data.language)
 
   const getLocalizedString = useCallback(
     (key: keyof typeof langEn, lang = data?.language || 'en'): string => {
@@ -63,12 +64,3 @@ export const useTranslation = () => {
   const { getLocalizedString } = useContext(TranslationContext);
   return { getLocalizedString };
 };
-export interface StatusBarTimersProps {
-  projectTitle: string;
-  playback: Playback;
-  selectedEventId: string | null;
-  firstStart?: number;
-  firstId?: string;
-  lastEnd?: number;
-  lastId?: string;
-}

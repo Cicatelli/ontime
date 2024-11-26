@@ -3,13 +3,13 @@ import { Input } from '@chakra-ui/react';
 import { sanitiseCue } from 'ontime-utils';
 
 import SwatchSelect from '../../../../common/components/input/colour-input/SwatchSelect';
+import * as Editor from '../../../editors/editor-utils/EditorUtils';
 import { type EditorUpdateFields } from '../EventEditor';
 
 import EventTextArea from './EventTextArea';
 import EventTextInput from './EventTextInput';
 
 import style from '../EventEditor.module.scss';
-import { useTranslation } from '../../../../translation/TranslationProvider';
 
 interface EventEditorTitlesProps {
   eventId: string;
@@ -27,16 +27,11 @@ const EventEditorTitles = (props: EventEditorTitlesProps) => {
     handleSubmit('cue', sanitiseCue(newValue));
   };
 
-  const { getLocalizedString } = useTranslation();
-
-
   return (
     <div className={style.column}>
       <div className={style.splitTwo}>
         <div>
-          <label className={style.inputLabel} htmlFor='eventId'>
-          {getLocalizedString('editor.eventid')}
-          </label>
+          <Editor.Label htmlFor='eventId'>Event ID (read only)</Editor.Label>
           <Input
             id='eventId'
             size='sm'
@@ -46,14 +41,14 @@ const EventEditorTitles = (props: EventEditorTitlesProps) => {
             readOnly
           />
         </div>
-        <EventTextInput field='cue' label={getLocalizedString('global.cue')} initialValue={cue} submitHandler={cueSubmitHandler} maxLength={10} />
+        <EventTextInput field='cue' label='Cue' initialValue={cue} submitHandler={cueSubmitHandler} maxLength={10} />
       </div>
       <div>
-        <label className={style.inputLabel}>{getLocalizedString('global.colour')}</label>
+        <Editor.Label>Colour</Editor.Label>
         <SwatchSelect name='colour' value={colour} handleChange={handleSubmit} />
       </div>
-      <EventTextInput field='title' label={getLocalizedString('global.title')} initialValue={title} submitHandler={handleSubmit} />
-      <EventTextArea field='note' label={getLocalizedString('global.note')} initialValue={note} submitHandler={handleSubmit} />
+      <EventTextInput field='title' label='Title' initialValue={title} submitHandler={handleSubmit} />
+      <EventTextArea field='note' label='Note' initialValue={note} submitHandler={handleSubmit} />
     </div>
   );
 };

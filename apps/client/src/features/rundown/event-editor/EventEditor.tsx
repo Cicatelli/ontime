@@ -8,6 +8,7 @@ import { useEventAction } from '../../../common/hooks/useEventAction';
 import useCustomFields from '../../../common/hooks-query/useCustomFields';
 import useRundown from '../../../common/hooks-query/useRundown';
 import { getAccessibleColour } from '../../../common/utils/styleUtils';
+import * as Editor from '../../editors/editor-utils/EditorUtils';
 import { useEventSelection } from '../useEventSelection';
 
 import EventEditorTimes from './composite/EventEditorTimes';
@@ -16,8 +17,6 @@ import EventTextArea from './composite/EventTextArea';
 import EventEditorEmpty from './EventEditorEmpty';
 
 import style from './EventEditor.module.scss';
-import { useTranslation } from '../../../translation/TranslationProvider'
-
 
 export type EventEditorSubmitActions = keyof OntimeEvent;
 
@@ -73,9 +72,6 @@ export default function EventEditor() {
     return <EventEditorEmpty />;
   }
 
-  const { getLocalizedString } = useTranslation();
-
-
   return (
     <div className={style.eventEditor} data-testid='editor-container'>
       <div className={style.content}>
@@ -105,9 +101,9 @@ export default function EventEditor() {
         />
         <div className={style.column}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span>{getLocalizedString('global.custom_fields')}</span>
+            <Editor.Title>Custom Fields</Editor.Title>
             <Button variant='ontime-subtle' size='sm' onClick={handleOpenCustomManager}>
-            {getLocalizedString('global.manage')}
+              Manage
             </Button>
           </div>
           {Object.keys(customFields).map((fieldKey) => {
