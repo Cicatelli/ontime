@@ -5,6 +5,7 @@ $transition-time-feedback: 0.3s;
 
 $component-border-radius-md: 3px;
 $component-border-radius-sm: 2px;
+$component-border-radius-full: 99px;
 
 // semantic colours
 $action-blue: #3182ce;
@@ -12,6 +13,7 @@ $action-text-color: $blue-400;
 $ontime-color: #ff7597;
 $error-red: $red-500;
 $warning-orange: $orange-500;
+$info-blue: $blue-500;
 $opacity-disabled: 0.4;
 $active-red: $red-700;
 
@@ -49,14 +51,18 @@ $main-spacing: 2rem;
 
 // interface text
 $ontime-font-family: "Open Sans", "Segoe UI", sans-serif;
+$title-gray: $gray-200;
 $label-gray: $gray-400;
 $secondary-text-gray: $gray-400;
+$muted-gray: $gray-600;
 $section-white: $ui-white;
 $inner-section-text-size: calc(1rem - 2px);
 $text-body-size: calc(1rem - 1px);
+$aux-text-size: calc(1rem - 3px);
 
 // media queries
 $min-tablet: 500px;
+$small-screen: 800px;
 
 .blink {
   animation: blink 1s step-start infinite;

@@ -175,7 +175,7 @@ describe('getExpectedFinish()', () => {
       const state = {
         eventNow: {
           timeEnd: 30,
-          timerType: TimerType.TimeToEnd,
+          countToEnd: true,
         },
         timer: {
           addedTime: 10,
@@ -195,7 +195,7 @@ describe('getExpectedFinish()', () => {
       const state = {
         eventNow: {
           timeEnd: 600000, // 00:10:00
-          timerType: TimerType.TimeToEnd,
+          countToEnd: true,
         },
         timer: {
           addedTime: 0,
@@ -346,12 +346,12 @@ describe('getCurrent()', () => {
     expect(current).toBe(35);
   });
 
-  describe('on timers of type time-to-end', () => {
+  describe('on timers of type count-to-end', () => {
     it('current time is the time to end even if it hasnt started, this is weird, but by design', () => {
       const state = {
         eventNow: {
           timeEnd: 100,
-          timerType: TimerType.TimeToEnd,
+          countToEnd: true,
         },
         clock: 30,
         timer: {
@@ -376,7 +376,7 @@ describe('getCurrent()', () => {
       const state = {
         eventNow: {
           timeEnd: 100,
-          timerType: TimerType.TimeToEnd,
+          countToEnd: true,
         },
         clock: 30,
         timer: {
@@ -401,7 +401,7 @@ describe('getCurrent()', () => {
       const state = {
         eventNow: {
           timeEnd: 100,
-          timerType: TimerType.TimeToEnd,
+          countToEnd: true,
         },
         clock: 30,
         timer: {
@@ -427,7 +427,7 @@ describe('getCurrent()', () => {
         eventNow: {
           timeStart: 79200000, // 22:00:00
           timeEnd: 600000, // 00:10:00
-          timerType: TimerType.TimeToEnd,
+          countToEnd: true,
         },
         clock: 79500000, // 22:05:00
         timer: {
@@ -456,7 +456,7 @@ describe('getCurrent()', () => {
           timeStart: 77400000, // 21:30:00
           timeEnd: 81000000, // 22:30:00
           duration: 3600000, // 01:00:00
-          timerType: TimerType.TimeToEnd,
+          countToEnd: true,
         },
         timer: {
           addedTime: 0,
@@ -909,7 +909,8 @@ describe('getRuntimeOffset()', () => {
         timeStrategy: TimeStrategy.LockEnd,
         linkStart: null,
         endAction: EndAction.None,
-        timerType: TimerType.TimeToEnd,
+        timerType: TimerType.CountDown,
+        countToEnd: true,
         isPublic: true,
         skip: false,
         note: '',
@@ -961,7 +962,8 @@ describe('getRuntimeOffset()', () => {
         timeStrategy: TimeStrategy.LockEnd,
         linkStart: null,
         endAction: EndAction.None,
-        timerType: TimerType.TimeToEnd,
+        timerType: TimerType.CountDown,
+        countToEnd: true,
         isPublic: true,
         skip: false,
         note: '',
@@ -1011,7 +1013,8 @@ describe('getRuntimeOffset()', () => {
         timeStrategy: TimeStrategy.LockEnd,
         linkStart: null,
         endAction: EndAction.None,
-        timerType: TimerType.TimeToEnd, // <--- but this is time to end
+        timerType: TimerType.CountDown,
+        countToEnd: true,
       },
       runtime: {
         selectedEventIndex: 0,

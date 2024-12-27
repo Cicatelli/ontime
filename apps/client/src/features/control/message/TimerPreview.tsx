@@ -16,7 +16,7 @@ import { Corner } from '../../editors/editor-utils/EditorUtils';
 import style from './MessageControl.module.scss';
 
 export default function TimerPreview() {
-  const { blink, blackout, phase, showAuxTimer, showExternalMessage, showTimerMessage, timerType } =
+  const { blink, blackout, countToEnd, phase, showAuxTimer, showExternalMessage, showTimerMessage, timerType } =
     useMessagePreview();
   const { data } = useViewSettings();
 
@@ -24,11 +24,11 @@ export default function TimerPreview() {
 
   const main = (() => {
     if (showTimerMessage) return 'Message';
+    if (timerType === TimerType.None) return timerPlaceholder;
     if (phase === TimerPhase.Pending) return 'Standby to start';
     if (phase === TimerPhase.Overtime && data.endMessage) return 'Custom end message';
-    if (timerType === TimerType.TimeToEnd) return 'Time to end';
     if (timerType === TimerType.Clock) return 'Clock';
-    if (timerType === TimerType.None) return timerPlaceholder;
+    if (countToEnd) return 'Count to End';
     return 'Timer';
   })();
 
@@ -74,11 +74,11 @@ export default function TimerPreview() {
         <Tooltip label='Time type: Clock' openDelay={tooltipDelayMid} shouldWrapChildren>
           <IoTime className={style.statusIcon} data-active={timerType === TimerType.Clock} />
         </Tooltip>
-        <Tooltip label='Time type: Time to end' openDelay={tooltipDelayMid} shouldWrapChildren>
-          <IoFlag className={style.statusIcon} data-active={timerType === TimerType.TimeToEnd} />
-        </Tooltip>
         <Tooltip label='Time type: None' openDelay={tooltipDelayMid} shouldWrapChildren>
           <IoBan className={style.statusIcon} data-active={timerType === TimerType.None} />
+        </Tooltip>
+        <Tooltip label={countToEnd ? 'Count to end' : 'Count duration'} openDelay={tooltipDelayMid} shouldWrapChildren>
+          <IoFlag className={style.statusIcon} data-active={countToEnd} />
         </Tooltip>
       </div>
     </div>

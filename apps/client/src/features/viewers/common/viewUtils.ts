@@ -5,16 +5,22 @@ import type { ViewExtendedTimer } from '../../../common/models/TimeManager.type'
 import { timerPlaceholder, timerPlaceholderMin } from '../../../common/utils/styleUtils';
 import { formatTime } from '../../../common/utils/time';
 
-type TimerTypeParams = Pick<ViewExtendedTimer, 'timerType' | 'current' | 'elapsed' | 'clock'>;
+type TimerTypeParams = Pick<ViewExtendedTimer, 'countToEnd' | 'timerType' | 'current' | 'elapsed' | 'clock'>;
 
 export function getTimerByType(freezeEnd: boolean, timerObject?: TimerTypeParams): number | null {
   if (!timerObject) {
     return null;
   }
 
+  if (timerObject.countToEnd) {
+    if (timerObject.current === null) {
+      return null;
+    }
+    return freezeEnd ? Math.max(timerObject.current, 0) : timerObject.current;
+  }
+
   switch (timerObject.timerType) {
     case TimerType.CountDown:
-    case TimerType.TimeToEnd:
       if (timerObject.current === null) {
         return null;
       }
@@ -32,6 +38,10 @@ export function getTimerByType(freezeEnd: boolean, timerObject?: TimerTypeParams
   }
 }
 
+/**
+ * Parses a string to semantically verify if it represents a true value
+ * Used in the context of parsing search params and local storage items which can be strings or null
+ */
 export function isStringBoolean(text: string | null) {
   if (text === null) {
     return false;

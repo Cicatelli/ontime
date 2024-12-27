@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { isOntimeEvent, OntimeEvent, SupportedEvent } from 'ontime-types';
 import { getFirstEventNormal, getLastEventNormal } from 'ontime-utils';
 
-import Empty from '../../common/components/state/Empty';
+import EmptyPage from '../../common/components/state/EmptyPage';
 import ViewParamsEditor from '../../common/components/view-params-editor/ViewParamsEditor';
 import useFollowComponent from '../../common/hooks/useFollowComponent';
 import { useOperator } from '../../common/hooks/useSocket';
@@ -12,7 +12,7 @@ import useCustomFields from '../../common/hooks-query/useCustomFields';
 import useProjectData from '../../common/hooks-query/useProjectData';
 import useRundown from '../../common/hooks-query/useRundown';
 import useSettings from '../../common/hooks-query/useSettings';
-import { debounce } from '../../common/utils/debounce';
+import { throttle } from '../../common/utils/throttle';
 import { getDefaultFormat } from '../../common/utils/time';
 import { getPropertyValue, isStringBoolean } from '../viewers/common/viewUtils';
 
@@ -85,7 +85,7 @@ export default function Operator() {
       }
     }
   };
-  const debouncedHandleScroll = debounce(handleUserScroll, 1000);
+  const throttledHandleScroll = throttle(handleUserScroll, 1000);
 
   const handleScroll = () => {
     if (timeoutId.current) {
@@ -97,7 +97,7 @@ export default function Operator() {
 
     setShowEditPrompt(true);
 
-    debouncedHandleScroll();
+    throttledHandleScroll();
   };
 
   const handleEdit = useCallback((event: EditEvent) => {
@@ -108,7 +108,7 @@ export default function Operator() {
   const isLoading = status === 'pending' || customFieldStatus === 'pending' || projectDataStatus === 'pending';
 
   if (missingData || isLoading) {
-    return <Empty text='Loading...' />;
+    return <EmptyPage text='Loading...' />;
   }
 
   // get fields which the user subscribed to

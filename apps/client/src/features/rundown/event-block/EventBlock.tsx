@@ -24,13 +24,14 @@ import RundownIndicators from './RundownIndicators';
 import style from './EventBlock.module.scss';
 
 interface EventBlockProps {
+  eventId: string;
   cue: string;
   timeStart: number;
   timeEnd: number;
   duration: number;
   timeStrategy: TimeStrategy;
   linkStart: MaybeString;
-  eventId: string;
+  countToEnd: boolean;
   eventIndex: number;
   isPublic: boolean;
   endAction: EndAction;
@@ -68,6 +69,7 @@ export default function EventBlock(props: EventBlockProps) {
     duration,
     timeStrategy,
     linkStart,
+    countToEnd,
     isPublic = true,
     eventIndex,
     endAction,
@@ -286,6 +288,7 @@ export default function EventBlock(props: EventBlockProps) {
           timeEnd={timeEnd}
           duration={duration}
           linkStart={linkStart}
+          countToEnd={countToEnd}
           timeStrategy={timeStrategy}
           eventId={eventId}
           eventIndex={eventIndex}

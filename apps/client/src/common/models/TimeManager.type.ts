@@ -15,4 +15,5 @@ export type ViewExtendedTimer = {
 
   clock: number;
   timerType: TimerType;
+  countToEnd: boolean;
 };
