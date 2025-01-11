@@ -20,6 +20,9 @@ export const demoDb: DatabaseModel = {
       skip: false,
       colour: '',
       revision: 0,
+      delay: 0,
+      dayOffset: 0,
+      gap: 0,
       timeWarning: 500000,
       timeDanger: 100000,
       custom: {
@@ -45,6 +48,9 @@ export const demoDb: DatabaseModel = {
       skip: false,
       colour: '',
       revision: 0,
+      delay: 0,
+      dayOffset: 0,
+      gap: 0,
       timeWarning: 500000,
       timeDanger: 100000,
       custom: {
@@ -70,6 +76,9 @@ export const demoDb: DatabaseModel = {
       skip: false,
       colour: '',
       revision: 0,
+      delay: 0,
+      dayOffset: 0,
+      gap: 0,
       timeWarning: 500000,
       timeDanger: 100000,
       custom: {
@@ -95,6 +104,9 @@ export const demoDb: DatabaseModel = {
       skip: false,
       colour: '',
       revision: 0,
+      delay: 0,
+      dayOffset: 0,
+      gap: 0,
       timeWarning: 500000,
       timeDanger: 100000,
       custom: {
@@ -120,6 +132,9 @@ export const demoDb: DatabaseModel = {
       skip: false,
       colour: '',
       revision: 0,
+      delay: 0,
+      dayOffset: 0,
+      gap: 0,
       timeWarning: 500000,
       timeDanger: 100000,
       custom: {
@@ -150,6 +165,9 @@ export const demoDb: DatabaseModel = {
       skip: false,
       colour: '',
       revision: 0,
+      delay: 0,
+      dayOffset: 0,
+      gap: 0,
       timeWarning: 500000,
       timeDanger: 100000,
       custom: {
@@ -175,6 +193,9 @@ export const demoDb: DatabaseModel = {
       skip: false,
       colour: '',
       revision: 0,
+      delay: 0,
+      dayOffset: 0,
+      gap: 0,
       timeWarning: 500000,
       timeDanger: 100000,
       custom: {
@@ -200,6 +221,9 @@ export const demoDb: DatabaseModel = {
       skip: false,
       colour: '',
       revision: 0,
+      delay: 0,
+      dayOffset: 0,
+      gap: 0,
       timeWarning: 500000,
       timeDanger: 100000,
       custom: {
@@ -225,6 +249,9 @@ export const demoDb: DatabaseModel = {
       skip: false,
       colour: '',
       revision: 0,
+      delay: 0,
+      dayOffset: 0,
+      gap: 0,
       timeWarning: 500000,
       timeDanger: 100000,
       custom: {
@@ -250,6 +277,9 @@ export const demoDb: DatabaseModel = {
       skip: false,
       colour: '',
       revision: 0,
+      delay: 0,
+      dayOffset: 0,
+      gap: 0,
       timeWarning: 500000,
       timeDanger: 100000,
       custom: {
@@ -280,6 +310,9 @@ export const demoDb: DatabaseModel = {
       skip: false,
       colour: '',
       revision: 0,
+      delay: 0,
+      dayOffset: 0,
+      gap: 0,
       timeWarning: 500000,
       timeDanger: 100000,
       custom: {
@@ -305,6 +338,9 @@ export const demoDb: DatabaseModel = {
       skip: false,
       colour: '',
       revision: 0,
+      delay: 0,
+      dayOffset: 0,
+      gap: 0,
       timeWarning: 500000,
       timeDanger: 100000,
       custom: {
@@ -330,6 +366,9 @@ export const demoDb: DatabaseModel = {
       skip: false,
       colour: '',
       revision: 0,
+      delay: 0,
+      dayOffset: 0,
+      gap: 0,
       timeWarning: 500000,
       timeDanger: 100000,
       custom: {
@@ -355,6 +394,9 @@ export const demoDb: DatabaseModel = {
       skip: false,
       colour: '',
       revision: 0,
+      delay: 0,
+      dayOffset: 0,
+      gap: 0,
       timeWarning: 500000,
       timeDanger: 100000,
       custom: {

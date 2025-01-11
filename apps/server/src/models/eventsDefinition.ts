@@ -8,7 +8,7 @@ import {
   TimerType,
 } from 'ontime-types';
 
-export const event: Omit<OntimeEvent, 'id' | 'delay' | 'cue'> = {
+export const event: Omit<OntimeEvent, 'id' | 'cue'> = {
   title: '',
   note: '',
   endAction: EndAction.None,
@@ -24,6 +24,9 @@ export const event: Omit<OntimeEvent, 'id' | 'delay' | 'cue'> = {
   colour: '',
   type: SupportedEvent.Event,
   revision: 0,
+  delay: 0,
+  dayOffset: 0,
+  gap: 0,
   timeWarning: 120000,
   timeDanger: 60000,
   custom: {},
