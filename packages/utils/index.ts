@@ -44,10 +44,11 @@ export {
   millisToSeconds,
   secondsInMillis,
 } from './src/date-utils/conversionUtils.js';
-export { isTimeString } from './src/date-utils/isTimeString.js';
+export { isISO8601, isTimeString } from './src/date-utils/isTimeString.js';
 export {
   formatFromMillis,
   millisToString,
+  pad,
   removeLeadingZero,
   removeSeconds,
   removeTrailingZero,
@@ -63,7 +64,9 @@ export { customFieldLabelToKey } from './src/customField-utils/customFieldLabelT
 export { deepmerge } from './src/externals/deepmerge.js';
 
 // array utils
-export { deleteAtIndex, insertAtIndex, reorderArray } from './src/array-utils/arrayUtils.js';
+export { deleteAtIndex, insertAtIndex, reorderArray } from './src/common/arrayUtils.js';
+// object utils
+export { getPropertyFromPath } from './src/common/objectUtils.js';
 
 // generic utilities
 export { getErrorMessage } from './src/generic/generic.js';
