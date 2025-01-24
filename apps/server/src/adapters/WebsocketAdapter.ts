@@ -20,11 +20,12 @@ import { WebSocket, WebSocketServer } from 'ws';
 import type { Server } from 'http';
 
 import getRandomName from '../utils/getRandomName.js';
-import { IAdapter } from './IAdapter.js';
+import type { IAdapter } from './IAdapter.js';
 import { eventStore } from '../stores/EventStore.js';
 import { logger } from '../classes/Logger.js';
 import { dispatchFromAdapter } from '../api-integration/integration.controller.js';
 import { generateId } from 'ontime-utils';
+import { authenticateSocket } from '../middleware/authenticate.js';
 
 let instance: SocketServer | null = null;
 
@@ -51,7 +52,12 @@ export class SocketServer implements IAdapter {
     this.shouldShowWelcome = showWelcome;
     this.wss = new WebSocketServer({ path: `${prefix}/ws`, server, maxPayload: this.MAX_PAYLOAD });
 
-    this.wss.on('connection', (ws) => {
+    this.wss.on('connection', (ws, req) => {
+      authenticateSocket(ws, req, (error) => {
+        if (error) {
+          ws.close(1008, 'Unauthorized');
+        }
+      });
       const clientId = generateId();
 
       this.clients.set(clientId, {

@@ -81,6 +81,14 @@ export const srcFiles = {
   clientIndexHtml: join(srcDir.clientDir, 'index.html'),
   /** Path to bundled CSS  */
   cssOverride: join(srcDir.root, config.user, config.styles.directory, config.styles.filename),
+  /** Path to bundled external readme */
+  externalReadme: join(srcDir.root, config.external, 'README.md'),
+  /** Path to bundled user readme */
+  userReadme: join(srcDir.root, config.user, 'README.md'),
+  /** Path to bundled CSS readme */
+  cssReadme: join(srcDir.root, config.user, config.styles.directory, 'README.md'),
+  /** Path to login */
+  login: join(srcDir.root, 'html/login.html'),
 };
 
 /**
@@ -138,4 +146,10 @@ export const publicFiles = {
   restoreFile: join(publicDir.root, config.restoreFile),
   /** path to CSS override file */
   cssOverride: join(publicDir.stylesDir, config.styles.filename),
+  /** path to external readme file */
+  externalReadme: join(publicDir.externalDir, 'README.md'),
+  /** path to user readme file */
+  userReadme: join(publicDir.userDir, 'README.md'),
+  /** path to CSS readme file */
+  cssReadme: join(publicDir.stylesDir, 'README.md'),
 } as const;

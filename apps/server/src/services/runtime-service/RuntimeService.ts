@@ -22,7 +22,7 @@ import { timerConfig } from '../../config/config.js';
 import { eventStore } from '../../stores/EventStore.js';
 
 import { EventTimer } from '../EventTimer.js';
-import { RestorePoint, restoreService } from '../RestoreService.js';
+import { type RestorePoint, restoreService } from '../RestoreService.js';
 import {
   findNext,
   findPrevious,
@@ -32,10 +32,10 @@ import {
   getRundown,
   getTimedEvents,
 } from '../rundown-service/rundownUtils.js';
-import { integrationService } from '../integration-service/IntegrationService.js';
 
 import { getForceUpdate, getShouldClockUpdate, getShouldTimerUpdate } from './rundownService.utils.js';
 import { skippedOutOfEvent } from '../timerUtils.js';
+import { triggerAutomations } from '../../api-data/automation/automation.service.js';
 
 /**
  * Service manages runtime status of app
@@ -48,6 +48,7 @@ class RuntimeService {
 
   /** last time we updated the socket */
   static previousTimerUpdate: number;
+  static previousRuntimeUpdate: number;
   static previousTimerValue: MaybeNumber; // previous timer value, could be null
   static previousClockUpdate: number;
 
@@ -58,6 +59,7 @@ class RuntimeService {
     this.eventTimer = eventTimer;
 
     RuntimeService.previousTimerUpdate = -1;
+    RuntimeService.previousRuntimeUpdate = -1;
     RuntimeService.previousTimerValue = -1;
     RuntimeService.previousClockUpdate = -1;
     RuntimeService.previousState = {} as RuntimeState;
@@ -75,11 +77,11 @@ class RuntimeService {
     if (timerPhaseChanged) {
       if (newState.timer.phase === TimerPhase.Warning) {
         process.nextTick(() => {
-          integrationService.dispatch(TimerLifeCycle.onWarning);
+          triggerAutomations(TimerLifeCycle.onWarning, newState);
         });
       } else if (newState.timer.phase === TimerPhase.Danger) {
         process.nextTick(() => {
-          integrationService.dispatch(TimerLifeCycle.onDanger);
+          triggerAutomations(TimerLifeCycle.onDanger, newState);
         });
       }
     }
@@ -95,7 +97,7 @@ class RuntimeService {
       } else if (hasTimerFinished) {
         // if the timer has finished, we need to load next and keep rolling
         process.nextTick(() => {
-          integrationService.dispatch(TimerLifeCycle.onFinish);
+          triggerAutomations(TimerLifeCycle.onFinish, newState);
         });
         this.handleLoadNext();
         this.rollLoaded(keepOffset);
@@ -115,7 +117,7 @@ class RuntimeService {
     // 3. find if we need to process actions related to the timer finishing
     if (newState.timer.playback === Playback.Play && hasTimerFinished) {
       process.nextTick(() => {
-        integrationService.dispatch(TimerLifeCycle.onFinish);
+        triggerAutomations(TimerLifeCycle.onFinish, newState);
       });
 
       // handle end action if there was a timer playing
@@ -135,7 +137,7 @@ class RuntimeService {
     const shouldUpdateTimer = getShouldTimerUpdate(this.lastIntegrationTimerValue, newState.timer.current);
     if (shouldUpdateTimer) {
       process.nextTick(() => {
-        integrationService.dispatch(TimerLifeCycle.onUpdate);
+        triggerAutomations(TimerLifeCycle.onUpdate, newState);
       });
 
       this.lastIntegrationTimerValue = newState.timer.current ?? -1;
@@ -145,7 +147,7 @@ class RuntimeService {
     const shouldUpdateClock = getShouldClockUpdate(this.lastIntegrationClockUpdate, newState.clock);
     if (shouldUpdateClock) {
       process.nextTick(() => {
-        integrationService.dispatch(TimerLifeCycle.onClock);
+        triggerAutomations(TimerLifeCycle.onClock, newState);
       });
 
       this.lastIntegrationClockUpdate = newState.clock;
@@ -292,7 +294,7 @@ class RuntimeService {
     if (success) {
       logger.info(LogOrigin.Playback, `Loaded event with ID ${event.id}`);
       process.nextTick(() => {
-        integrationService.dispatch(TimerLifeCycle.onLoad);
+        triggerAutomations(TimerLifeCycle.onLoad, runtimeState.getState());
       });
     }
     return success;
@@ -471,7 +473,7 @@ class RuntimeService {
 
     if (didStart) {
       process.nextTick(() => {
-        integrationService.dispatch(TimerLifeCycle.onStart);
+        triggerAutomations(TimerLifeCycle.onStart, newState);
       });
     }
     return didStart;
@@ -524,7 +526,7 @@ class RuntimeService {
     const newState = runtimeState.getState();
     logger.info(LogOrigin.Playback, `Play Mode ${newState.timer.playback.toUpperCase()}`);
     process.nextTick(() => {
-      integrationService.dispatch(TimerLifeCycle.onPause);
+      triggerAutomations(TimerLifeCycle.onPause, newState);
     });
   }
 
@@ -543,7 +545,7 @@ class RuntimeService {
       const newState = runtimeState.getState();
       logger.info(LogOrigin.Playback, `Play Mode ${newState.timer.playback.toUpperCase()}`);
       process.nextTick(() => {
-        integrationService.dispatch(TimerLifeCycle.onStop);
+        triggerAutomations(TimerLifeCycle.onStop, newState);
       });
 
       return true;
@@ -591,16 +593,17 @@ class RuntimeService {
     try {
       const rundown = getRundown();
       const result = runtimeState.roll(rundown);
+      const newState = runtimeState.getState();
       if (result.eventId !== previousState.eventNow?.id) {
         logger.info(LogOrigin.Playback, `Loaded event with ID ${result.eventId}`);
         process.nextTick(() => {
-          integrationService.dispatch(TimerLifeCycle.onLoad);
+          triggerAutomations(TimerLifeCycle.onLoad, newState);
         });
       }
 
       if (result.didStart) {
         process.nextTick(() => {
-          integrationService.dispatch(TimerLifeCycle.onStart);
+          triggerAutomations(TimerLifeCycle.onStart, newState);
         });
       }
     } catch (error) {
@@ -678,9 +681,16 @@ function broadcastResult(_target: any, _propertyKey: string, descriptor: Propert
     // we do the comparison by explicitly for each property
     // to apply custom logic for different datasets
 
-    const shouldForceTimerUpdate = getForceUpdate(RuntimeService.previousTimerUpdate, state.clock);
+    const shouldForceTimerUpdate = getForceUpdate(
+      RuntimeService.previousTimerUpdate,
+      state.clock,
+      state.timer.playback,
+    );
+
     const shouldUpdateTimer =
       shouldForceTimerUpdate || getShouldTimerUpdate(RuntimeService.previousTimerValue, state.timer.current);
+
+    const shouldRuntimeUpdate = shouldUpdateTimer || getForceUpdate(RuntimeService.previousRuntimeUpdate, state.clock);
 
     // some changes need an immediate update
     const hasNewLoaded = state.eventNow?.id !== RuntimeService.previousState?.eventNow?.id;
@@ -696,12 +706,20 @@ function broadcastResult(_target: any, _propertyKey: string, descriptor: Propert
     if (hasImmediateChanges || (shouldUpdateTimer && !deepEqual(RuntimeService.previousState?.timer, state.timer))) {
       RuntimeService.previousTimerUpdate = state.clock;
       RuntimeService.previousTimerValue = state.timer.current;
+      RuntimeService.previousClockUpdate = state.clock;
+      eventStore.set('clock', state.clock);
       eventStore.set('timer', state.timer);
       RuntimeService.previousState.timer = { ...state.timer };
     }
 
-    if (hasChangedPlayback || (shouldUpdateTimer && !deepEqual(RuntimeService.previousState?.runtime, state.runtime))) {
+    if (
+      hasChangedPlayback ||
+      (shouldRuntimeUpdate && !deepEqual(RuntimeService.previousState?.runtime, state.runtime))
+    ) {
       eventStore.set('runtime', state.runtime);
+      RuntimeService.previousClockUpdate = state.clock;
+      RuntimeService.previousRuntimeUpdate = state.clock;
+      eventStore.set('clock', state.clock);
       RuntimeService.previousState.runtime = { ...state.runtime };
     }
 
@@ -711,15 +729,14 @@ function broadcastResult(_target: any, _propertyKey: string, descriptor: Propert
     updateEventIfChanged('eventNext', state);
     updateEventIfChanged('publicEventNext', state);
 
-    let syncBlockStartAt = false;
-
     if (!deepEqual(RuntimeService?.previousState.currentBlock, state.currentBlock)) {
       eventStore.set('currentBlock', state.currentBlock);
       RuntimeService.previousState.currentBlock = { ...state.currentBlock };
-      syncBlockStartAt = true;
+      RuntimeService.previousClockUpdate = state.clock;
+      eventStore.set('clock', state.clock);
     }
 
-    const shouldUpdateClock = syncBlockStartAt || getShouldClockUpdate(RuntimeService.previousClockUpdate, state.clock);
+    const shouldUpdateClock = getShouldClockUpdate(RuntimeService.previousClockUpdate, state.clock);
 
     if (shouldUpdateClock) {
       RuntimeService.previousClockUpdate = state.clock;
