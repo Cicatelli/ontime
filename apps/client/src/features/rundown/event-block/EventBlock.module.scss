@@ -9,16 +9,17 @@ $skip-opacity: 0.2;
   display: grid;
   grid-template-areas:
     'binder ...        ...     ...'
-    'binder pb-actions times   ...'
+    'binder pb-actions times   chip'
     'binder pb-actions title   title'
     'binder pb-actions estatus estatus'
     'binder ...        ...     ...';
 
   grid-template-columns: $block-binder-width 3rem 1fr auto;
-  grid-template-rows: 0.25rem 2.25rem 2.25rem 2.25rem 0.25rem;
+  grid-template-rows: 0.125rem 2rem 2rem 2rem 0.125rem;
   align-items: center;
   padding-right: $block-clearance;
   gap: 2px;
+  row-gap: 0.25rem;
 
   transition-property: background-color;
   transition-duration: $transition-time-feedback;
@@ -120,7 +121,7 @@ $skip-opacity: 0.2;
   display: flex;
   flex-direction: column;
   margin: 0 0.5rem;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
 .eventTimers {
@@ -129,6 +130,10 @@ $skip-opacity: 0.2;
   align-items: center;
   gap: $block-clearance;
   height: 100%;
+}
+
+.chipSection {
+  grid-area: chip;
 }
 
 .titleSection {

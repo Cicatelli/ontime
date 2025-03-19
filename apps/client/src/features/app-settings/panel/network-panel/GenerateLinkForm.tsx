@@ -5,14 +5,13 @@ import { Button, Select, Switch } from '@chakra-ui/react';
 
 import { generateUrl } from '../../../../common/api/session';
 import { maybeAxiosError } from '../../../../common/api/utils';
-import ExternalLink from '../../../../common/components/external-link/ExternalLink';
 import Info from '../../../../common/components/info/Info';
 import useInfo from '../../../../common/hooks-query/useInfo';
 import useUrlPresets from '../../../../common/hooks-query/useUrlPresets';
 import copyToClipboard from '../../../../common/utils/copyToClipboard';
 import { preventEscape } from '../../../../common/utils/keyEvent';
 import { linkToOtherHost } from '../../../../common/utils/linkUtils';
-import { serverURL } from '../../../../externals';
+import { currentHostName, isOntimeCloud, serverURL } from '../../../../externals';
 import * as Panel from '../../panel-utils/PanelUtils';
 
 import style from './GenerateLinkForm.module.scss';
@@ -39,6 +38,12 @@ export default function GenerateLinkForm() {
     formState: { errors },
   } = useForm<GenerateLinkFormOptions>({
     mode: 'onChange',
+    defaultValues: {
+      baseUrl: currentHostName,
+      path: '',
+      lock: false,
+      authenticate: false,
+    },
     resetOptions: {
       keepDirtyValues: true,
     },
@@ -72,8 +77,11 @@ export default function GenerateLinkForm() {
       </Info>
       <Panel.ListGroup>
         <Panel.ListItem>
-          <Panel.Field title='Host IP' description='Which IP address will be used' />
-          <Select variant='ontime' size='sm' {...register('baseUrl')}>
+          <Panel.Field
+            title='Host IP'
+            description={`Which IP address will be used${isOntimeCloud ? ' (not applicable in Ontime Cloud)' : ''}`}
+          />
+          <Select variant='ontime' isDisabled={isOntimeCloud} size='sm' {...register('baseUrl')}>
             {infoData.networkInterfaces.map((nif) => {
               return (
                 <option key={nif.name} value={nif.address}>
@@ -128,9 +136,9 @@ export default function GenerateLinkForm() {
           >
             {formState === 'success' ? 'Link copied to clipboard!' : 'Update share link'}
           </Button>
-          <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <div className={style.column}>
             <QRCode size={172} value={url} className={style.qrCode} />
-            <ExternalLink href={url}>{url}</ExternalLink>
+            <div>{url}</div>
           </div>
         </Panel.ListItem>
       </Panel.ListGroup>

@@ -17,6 +17,7 @@ import { tooltipDelayMid } from '../../../ontimeConfig';
 import EditableBlockTitle from '../common/EditableBlockTitle';
 import TimeInputFlow from '../time-input-flow/TimeInputFlow';
 
+import EventBlockChip from './composite/EventBlockChip';
 import EventBlockPlayback from './composite/EventBlockPlayback';
 import EventBlockProgressBar from './composite/EventBlockProgressBar';
 
@@ -44,6 +45,10 @@ interface EventBlockInnerProps {
   loaded: boolean;
   playback?: Playback;
   isRolling: boolean;
+  dayOffset: number;
+  isPast: boolean;
+  totalGap: number;
+  isLinkedToLoaded: boolean;
 }
 
 function EventBlockInner(props: EventBlockInnerProps) {
@@ -66,6 +71,10 @@ function EventBlockInner(props: EventBlockInnerProps) {
     loaded,
     playback,
     isRolling,
+    dayOffset,
+    isPast,
+    totalGap,
+    isLinkedToLoaded,
   } = props;
 
   const [renderInner, setRenderInner] = useState(false);
@@ -113,6 +122,20 @@ function EventBlockInner(props: EventBlockInnerProps) {
         loaded={loaded}
         disablePlayback={skip || isRolling}
       />
+      {!skip && (
+        <EventBlockChip
+          className={style.chipSection}
+          id={eventId}
+          timeStart={timeStart}
+          delay={delay}
+          dayOffset={dayOffset}
+          isLinkedToLoaded={isLinkedToLoaded}
+          isPast={isPast}
+          isLoaded={loaded}
+          totalGap={totalGap}
+          duration={duration}
+        />
+      )}
       <div className={style.statusElements} id='block-status' data-ispublic={isPublic}>
         <span className={style.eventNote}>{note}</span>
         <div className={loaded ? style.progressBg : `${style.progressBg} ${style.hidden}`}>
