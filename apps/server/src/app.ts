@@ -144,7 +144,7 @@ export const initAssets = async () => {
   checkStart(OntimeStartOrder.InitAssets);
   await clearUploadfolder();
   populateStyles();
-  await populateDemo();
+  populateDemo();
   const project = await initialiseProject();
   logger.info(LogOrigin.Server, `Initialised Ontime with ${project}`);
 };
@@ -200,7 +200,7 @@ export const startServer = async (
   // initialise rundown service
   const persistedRundown = getDataProvider().getRundown();
   const persistedCustomFields = getDataProvider().getCustomFields();
-  await initRundown(persistedRundown, persistedCustomFields);
+  initRundown(persistedRundown, persistedCustomFields);
 
   // initialise message service
   messageService.init(eventStore.set, eventStore.get);
@@ -235,8 +235,6 @@ export const startIntegrations = async () => {
   const { enabledOscIn, oscPortIn } = getDataProvider().getAutomation();
   if (enabledOscIn) {
     oscServer.init(oscPortIn);
-  } else {
-    logger.info(LogOrigin.Server, 'Skipping OSC integration');
   }
 };
 

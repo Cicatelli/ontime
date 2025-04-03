@@ -20,7 +20,6 @@ export const namedImportMap = {
   'Timer type': 'timer type',
   'Time warning': 'warning time',
   'Time danger': 'danger time',
-  ID: 'id',
   custom: [] as ImportCustom[],
 };
 
@@ -59,7 +58,6 @@ export function convertToImportMap(namedImportMap: NamedImportMap): ImportMap {
     timeWarning: namedImportMap['Time warning'],
     timeDanger: namedImportMap['Time danger'],
     custom,
-    entryId: namedImportMap.ID,
   };
 }
 

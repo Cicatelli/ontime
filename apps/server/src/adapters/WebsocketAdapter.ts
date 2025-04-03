@@ -59,13 +59,11 @@ export class SocketServer implements IAdapter {
         }
       });
       const clientId = generateId();
-      const clientName = getRandomName();
 
       this.clients.set(clientId, {
         type: 'unknown',
         identify: false,
-        name: clientName,
-        origin: '',
+        name: getRandomName(),
         path: '',
       });
 
@@ -74,11 +72,15 @@ export class SocketServer implements IAdapter {
 
       ws.send(
         JSON.stringify({
-          type: 'client',
-          payload: {
-            clientId,
-            clientName,
-          },
+          type: 'client-id',
+          payload: clientId,
+        }),
+      );
+
+      ws.send(
+        JSON.stringify({
+          type: 'client-name',
+          payload: this.clients.get(clientId).name,
         }),
       );
 
@@ -123,14 +125,6 @@ export class SocketServer implements IAdapter {
                 payload: this.clients.get(clientId).name,
               }),
             );
-            return;
-          }
-
-          if (type === 'set-client-patch') {
-            if (payload && typeof payload == 'object') {
-              this.clients.set(clientId, { ...this.clients.get(clientId), ...payload });
-            }
-            this.sendClientList();
             return;
           }
 

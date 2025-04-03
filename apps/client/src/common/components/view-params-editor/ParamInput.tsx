@@ -126,9 +126,9 @@ function MultiOption(props: EditFormMultiOptionProps) {
             onChange={(value) => setParamState(Array.isArray(value) ? value : [value])}
           >
             {Object.values(paramField.values).map((option) => {
-              const { value, label, colour } = option;
+              const { value, label } = option;
               return (
-                <MenuItemOption value={value} key={value} style={{ borderRight: `8px solid ${colour}` }}>
+                <MenuItemOption value={value} key={value}>
                   {label}
                 </MenuItemOption>
               );

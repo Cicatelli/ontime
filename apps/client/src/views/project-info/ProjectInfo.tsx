@@ -5,7 +5,6 @@ import EmptyPage from '../../common/components/state/EmptyPage';
 import ViewLogo from '../../common/components/view-logo/ViewLogo';
 import ViewParamsEditor from '../../common/components/view-params-editor/ViewParamsEditor';
 import { useWindowTitle } from '../../common/hooks/useWindowTitle';
-import { useTranslation } from '../../translation/TranslationProvider';
 
 import BackstageInfo from './backstage-info/BackstageInfo';
 import PublicInfo from './public-info/PublicInfo';
@@ -20,19 +19,18 @@ interface ProjectInfoProps {
 
 export default function ProjectInfo(props: ProjectInfoProps) {
   const { general, isMirrored } = props;
-  const { getLocalizedString } = useTranslation();
 
   useWindowTitle('Project info');
 
   if (!general) {
-    return <Empty text={getLocalizedString('common.no_data')} />;
+    return <Empty text='No data found' />;
   }
 
   if (!general) {
     return (
       <>
         <ViewParamsEditor viewOptions={projectInfoOptions} />
-        <EmptyPage text={getLocalizedString('common.no_data')} />;
+        return <EmptyPage text='No data found' />;
       </>
     );
   }
@@ -42,7 +40,7 @@ export default function ProjectInfo(props: ProjectInfoProps) {
     return (
       <>
         <ViewParamsEditor viewOptions={projectInfoOptions} />
-        <EmptyPage text={getLocalizedString('common.no_data')} />;
+        <EmptyPage text='The project has no data yet' />;
       </>
     );
   }
@@ -54,13 +52,13 @@ export default function ProjectInfo(props: ProjectInfoProps) {
       <div className='info'>
         {general.title && (
           <>
-            <div className='info__label'>{getLocalizedString('project.title')}</div>
+            <div className='info__label'>Title</div>
             <div className='info__value'>{general.title}</div>
           </>
         )}
         {general.description && (
           <>
-            <div className='info__label'>{getLocalizedString('project.description')}</div>
+            <div className='info__label'>Description</div>
             <div className='info__value'>{general.description}</div>
           </>
         )}

@@ -67,17 +67,9 @@ export function TableEmpty({ label, handleClick }: { label?: string; handleClick
     <tr className={style.empty}>
       <td colSpan={99}>
         <div>{label ?? 'No data yet'}</div>
-        {handleClick && (
-          <Button
-            onClick={handleClick}
-            isDisabled={!handleClick}
-            variant='ontime-filled'
-            rightIcon={<IoAdd />}
-            size='sm'
-          >
-            New
-          </Button>
-        )}
+        <Button onClick={handleClick} isDisabled={!handleClick} variant='ontime-filled' rightIcon={<IoAdd />} size='sm'>
+          New
+        </Button>
       </td>
     </tr>
   );

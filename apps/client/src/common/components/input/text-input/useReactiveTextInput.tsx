@@ -17,7 +17,6 @@ export default function useReactiveTextInput(
     submitOnCtrlEnter?: boolean;
     onCancelUpdate?: () => void;
     allowSubmitSameValue?: boolean;
-    allowKeyboardNavigation?: boolean;
   },
 ): UseReactiveTextInputReturn {
   const [text, setText] = useState<string>(initialText);
@@ -59,14 +58,7 @@ export default function useReactiveTextInput(
           setText(cleanVal);
         }
       }
-
-      setTimeout(() => {
-        if (options?.allowKeyboardNavigation) {
-          ref.current?.parentElement?.focus(); // Focus on parent element to continue keyboard navigation
-        } else {
-          ref.current?.blur();
-        }
-      }); // Immediate timeout to ensure text is set before blurring
+      setTimeout(() => ref.current?.blur()); // Immediate timeout to ensure text is set before bluring
     },
     [initialText, options, ref, submitCallback],
   );
@@ -78,25 +70,12 @@ export default function useReactiveTextInput(
   const handleEscape = useCallback(() => {
     // No need to update if it hasn't changed
     setText(initialText);
-    // force the text to be the initial value
-    if (ref.current) {
-      ref.current.value = initialText;
-    }
     options?.onCancelUpdate?.();
-    setTimeout(() => ref.current?.blur()); // Immediate timeout to ensure text is set before blurring
+    setTimeout(() => ref.current?.blur()); // Immediate timeout to ensure text is set before bluring
   }, [initialText, options, ref]);
 
   const keyHandler = useMemo(() => {
-    const hotKeys: HotkeyItem[] = [
-      [
-        'Escape',
-        (event) => {
-          event.preventDefault();
-          handleEscape();
-        },
-        { preventDefault: true },
-      ],
-    ];
+    const hotKeys: HotkeyItem[] = [['Escape', handleEscape, { preventDefault: true }]];
 
     if (options?.submitOnEnter) {
       hotKeys.push(['Enter', () => handleSubmit(text)]);
@@ -105,22 +84,7 @@ export default function useReactiveTextInput(
     if (options?.submitOnCtrlEnter) {
       hotKeys.push(['mod + Enter', () => handleSubmit(text)]);
     }
-
-    const hotKeyHandler = getHotkeyHandler(hotKeys);
-
-    return (event: KeyboardEvent<HTMLElement>) => {
-      // allow moving in input field with arrow keys
-      if (
-        event.key === 'ArrowLeft' ||
-        event.key === 'ArrowRight' ||
-        event.key === 'ArrowUp' ||
-        event.key === 'ArrowDown'
-      ) {
-        event.stopPropagation();
-      }
-
-      hotKeyHandler(event);
-    };
+    return getHotkeyHandler(hotKeys);
   }, [handleEscape, handleSubmit, options?.submitOnCtrlEnter, options?.submitOnEnter, text]);
 
   return {

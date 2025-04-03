@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Badge, Button, useDisclosure } from '@chakra-ui/react';
-import { Client } from 'ontime-types';
 
 import { RedirectClientModal } from '../../../../common/components/client-modal/RedirectClientModal';
 import { RenameClientModal } from '../../../../common/components/client-modal/RenameClientModal';
@@ -32,16 +31,15 @@ export default function ClientList() {
   const ontimeClients = Object.entries(clients).filter(([_, { type }]) => type === 'ontime');
   const otherClients = Object.entries(clients).filter(([_, { type }]) => type !== 'ontime');
 
-  const targetClient: Client | undefined = clients[targetId];
+  const targetClient = clients[targetId];
 
   return (
     <>
-      {isOpenRedirect && targetClient !== undefined && (
+      {isOpenRedirect && (
         <RedirectClientModal
           id={targetId}
-          name={targetClient.name}
-          origin={targetClient.origin}
-          currentPath={targetClient.path}
+          name={targetClient?.name}
+          path={targetClient?.path}
           isOpen={isOpenRedirect}
           onClose={onCloseRedirect}
         />
@@ -54,7 +52,7 @@ export default function ClientList() {
         <Panel.Table>
           <thead>
             <tr>
-              <td className={style.halfWidth}>Client Name</td>
+              <td className={style.halfWidth}>Client Name (Connection ID)</td>
               <td className={style.fullWidth}>Path</td>
               <td />
             </tr>
@@ -66,6 +64,9 @@ export default function ClientList() {
               return (
                 <tr key={key}>
                   <Panel.InlineElements relation='inner' as='td'>
+                    <Badge variant='outline' size='xs'>
+                      {key}
+                    </Badge>
                     {isCurrent && (
                       <Badge variant='outline' colorScheme='yellow' size='xs'>
                         self
@@ -118,7 +119,7 @@ export default function ClientList() {
         <Panel.Table>
           <thead>
             <tr>
-              <td className={style.halfWidthNoWrap}>Client Name</td>
+              <td className={style.halfWidthNoWrap}>Client Name (Connection ID)</td>
               <td className={style.halfWidthNoWrap}>Client type</td>
             </tr>
           </thead>
@@ -128,7 +129,12 @@ export default function ClientList() {
 
               return (
                 <tr key={key}>
-                  <td>{name}</td>
+                  <Panel.InlineElements relation='inner' as='td'>
+                    <Badge variant='outline' size='sx'>
+                      {key}
+                    </Badge>
+                    {name}
+                  </Panel.InlineElements>
                   <td>{type}</td>
                 </tr>
               );

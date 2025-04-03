@@ -1,7 +1,7 @@
 import { IoApps } from 'react-icons/io5';
 import { IoSettingsOutline } from 'react-icons/io5';
 
-import { useFadeOutOnInactivity } from '../../hooks/useFadeOutOnInactivity';
+import { useFadeOutOnInactivity } from '../../../common/hooks/useFadeOutOnInactivity';
 import { cx } from '../../utils/styleUtils';
 
 import style from './NavigationMenu.module.scss';

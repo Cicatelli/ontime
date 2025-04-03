@@ -266,7 +266,6 @@ function notifyChanges(options: NotifyChangesOptions) {
   if (options.external) {
     // advice socket subscribers of change
     const payload = {
-      target: 'RUNDOWN',
       changes: Array.isArray(options.timer) ? options.timer : undefined,
       reload: options.reload,
       revision: cache.getMetadata().revision,

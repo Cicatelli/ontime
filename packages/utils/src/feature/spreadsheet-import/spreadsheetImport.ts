@@ -21,7 +21,6 @@ export const defaultImportMap = {
   timeWarning: 'warning time',
   timeDanger: 'danger time',
   custom: {},
-  entryId: 'id',
 };
 
 /**

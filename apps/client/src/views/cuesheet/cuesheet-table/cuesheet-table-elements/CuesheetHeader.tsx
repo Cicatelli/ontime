@@ -24,12 +24,8 @@ export default function CuesheetHeader(props: CuesheetHeaderProps) {
 
         return (
           <tr key={headerGroup.id}>
-            {showActionMenu && <th className={style.actionColumn} tabIndex={-1} />}
-            {!hideIndexColumn && (
-              <th className={style.indexColumn} tabIndex={-1}>
-                #
-              </th>
-            )}
+            {showActionMenu && <th className={style.actionColumn} />}
+            {!hideIndexColumn && <th className={style.indexColumn}>#</th>}
             <SortableContext key={key} items={headerGroup.headers} strategy={horizontalListSortingStrategy}>
               {headerGroup.headers.map((header) => {
                 const width = header.getSize();

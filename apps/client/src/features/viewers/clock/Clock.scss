@@ -25,14 +25,6 @@
     top: 2vw;
     left: 2vw;
     max-width: min(200px, 20vw);
-  }
-}
-
-/* =================== MOBILE ===================*/
-@media screen and (max-width: 768px) {
-  .clock-view {
-    .logo img {
-      height: min(50px, 10vh);
-    }
+    max-height: min(100px, 20vh);
   }
 }

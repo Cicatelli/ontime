@@ -39,29 +39,29 @@ describe('triggerAction()', () => {
   let oscSpy = vi.spyOn(oscClient, 'emitOSC');
   let httpSpy = vi.spyOn(httpClient, 'emitHTTP');
 
-  beforeEach(async () => {
+  beforeEach(() => {
     oscSpy = vi.spyOn(oscClient, 'emitOSC').mockImplementation(() => {});
     httpSpy = vi.spyOn(httpClient, 'emitHTTP').mockImplementation(() => {});
 
-    await deleteAllTriggers();
-    const oscAutomation = await addAutomation({
+    deleteAllTriggers();
+    const oscAutomation = addAutomation({
       title: 'test-osc',
       filterRule: 'all',
       filters: [],
       outputs: [makeOSCAction()],
     });
-    const httpAutomation = await addAutomation({
+    const httpAutomation = addAutomation({
       title: 'test-http',
       filterRule: 'any',
       filters: [],
       outputs: [makeHTTPAction()],
     });
-    await addTrigger({
+    addTrigger({
       title: 'test-osc',
       trigger: TimerLifeCycle.onLoad,
       automationId: oscAutomation.id,
     });
-    await addTrigger({
+    addTrigger({
       title: 'test-http',
       trigger: TimerLifeCycle.onFinish,
       automationId: httpAutomation.id,

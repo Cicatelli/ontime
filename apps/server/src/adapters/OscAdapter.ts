@@ -1,14 +1,13 @@
 import { LogOrigin } from 'ontime-types';
 
-import { fromBuffer, type OscPacketOutput } from 'osc-min';
+import { fromBuffer } from 'osc-min';
 import * as dgram from 'node:dgram';
 
+import type { IAdapter } from './IAdapter.js';
 import { logger } from '../classes/Logger.js';
+import { integrationPayloadFromPath } from './utils/parse.js';
 import { dispatchFromAdapter } from '../api-integration/integration.controller.js';
 import { isOntimeCloud } from '../externals.js';
-
-import { integrationPayloadFromPath } from './utils/parse.js';
-import type { IAdapter } from './IAdapter.js';
 
 class OscServer implements IAdapter {
   private udpSocket: dgram.Socket | null = null;
@@ -28,16 +27,10 @@ class OscServer implements IAdapter {
       // params: used to create a nested object to patch with
       // args: extra data, only used on some API entries
 
-      let msg: OscPacketOutput;
-      try {
-        msg = fromBuffer(buf);
-      } catch (_e) {
-        logger.error(LogOrigin.Rx, 'OSC IN: Received invalid OSC message');
-        return;
-      }
-
+      const msg = fromBuffer(buf);
       if (msg.oscType === 'bundle') {
-        logger.error(LogOrigin.Rx, 'OSC IN: Ontime is unable to handle OSC bundles');
+        //TODO: manage bundles
+        logger.error(LogOrigin.Rx, `OSC IN: We don't take bundles`);
         return;
       }
 
@@ -45,7 +38,7 @@ class OscServer implements IAdapter {
 
       // split message
       const [, ontimeKey, command, ...params] = address.split('/');
-      const args = oscArgs[0]?.value ?? undefined;
+      const args = oscArgs[0]?.value ?? undefined; //TODO: manage multiple args or mayeb we have no usecase
 
       // get first part (ontime)
       if (ontimeKey !== 'ontime') {
@@ -74,7 +67,7 @@ class OscServer implements IAdapter {
     this.udpSocket.bind(port);
   }
   shutdown() {
-    logger.info(LogOrigin.Rx, 'OSC: Closing server');
+    logger.info(LogOrigin.Rx, `OSC: Closing server`);
     this.udpSocket?.close();
     this.udpSocket = null;
   }

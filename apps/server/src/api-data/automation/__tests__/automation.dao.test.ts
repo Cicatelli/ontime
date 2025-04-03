@@ -40,43 +40,43 @@ afterAll(() => {
 });
 
 describe('addTrigger()', () => {
-  beforeEach(async () => {
-    await deleteAllTriggers();
+  beforeEach(() => {
+    deleteAllTriggers();
   });
 
-  it('should accept a valid trigger', async () => {
+  it('should accept a valid automation', () => {
     const testData: TriggerDTO = {
       title: 'test',
       trigger: TimerLifeCycle.onLoad,
       automationId: 'test-automation-id',
     };
 
-    const trigger = await addTrigger(testData);
+    const trigger = addTrigger(testData);
     expect(trigger).toMatchObject(testData);
   });
 });
 
 describe('editTrigger()', () => {
-  beforeEach(async () => {
-    await deleteAllTriggers();
-    await addTrigger({
+  beforeEach(() => {
+    deleteAllTriggers();
+    addTrigger({
       title: 'test-osc',
       trigger: TimerLifeCycle.onLoad,
       automationId: 'test-osc-automation',
     });
-    await addTrigger({
+    addTrigger({
       title: 'test-http',
       trigger: TimerLifeCycle.onFinish,
       automationId: 'test-http-automation',
     });
   });
 
-  it('should edit the contents of a trigger', async () => {
+  it('should edit the contents of an automation', () => {
     const triggers = getAutomationTriggers();
     const fistTrigger = triggers[0];
     expect(fistTrigger).toMatchObject({ id: expect.any(String), title: 'test-osc' });
 
-    const editedOSC = await editTrigger(fistTrigger.id, {
+    const editedOSC = editTrigger(fistTrigger.id, {
       title: 'edited-title',
       trigger: TimerLifeCycle.onDanger,
       automationId: 'test-osc-automation',
@@ -92,9 +92,9 @@ describe('editTrigger()', () => {
 });
 
 describe('deleteTrigger()', () => {
-  beforeEach(async () => {
-    await deleteAllTriggers();
-    await addTrigger({
+  beforeEach(() => {
+    deleteAllTriggers();
+    addTrigger({
       title: 'test-osc',
       trigger: TimerLifeCycle.onLoad,
       automationId: 'test-osc-automation',
@@ -106,13 +106,13 @@ describe('deleteTrigger()', () => {
     });
   });
 
-  it('should remove an automation from the list', async () => {
+  it('should remove an automation from the list', () => {
     const triggers = getAutomationTriggers();
     expect(triggers.length).toEqual(2);
     const fistTrigger = triggers[0];
     expect(fistTrigger).toMatchObject({ id: expect.any(String), title: 'test-osc' });
 
-    await deleteTrigger(fistTrigger.id);
+    deleteTrigger(fistTrigger.id);
     const removed = getAutomationTriggers();
     expect(removed.length).toEqual(1);
     expect(removed[0].title).not.toEqual('test-osc');
@@ -120,11 +120,11 @@ describe('deleteTrigger()', () => {
 });
 
 describe('addAutomation()', () => {
-  beforeEach(async () => {
-    await deleteAll();
+  beforeEach(() => {
+    deleteAll();
   });
 
-  it('should accept a valid automation', async () => {
+  it('should accept a valid automation', () => {
     const testData: AutomationDTO = {
       title: 'test',
       filterRule: 'all',
@@ -132,24 +132,24 @@ describe('addAutomation()', () => {
       outputs: [makeOSCAction(), makeHTTPAction()],
     };
 
-    const automation = await addAutomation(testData);
+    const automation = addAutomation(testData);
     const automations = getAutomations();
     expect(automations[automation.id]).toMatchObject(testData);
   });
 });
 
-describe('editAutomation()', async () => {
+describe('editAutomation()', () => {
   // saving the ID of the added automation
   let firstAutomation: Automation;
-  beforeEach(async () => {
-    await deleteAll();
-    firstAutomation = await addAutomation({
+  beforeEach(() => {
+    deleteAll();
+    firstAutomation = addAutomation({
       title: 'test-osc',
       filterRule: 'all',
       filters: [],
       outputs: [],
     });
-    await addAutomation({
+    addAutomation({
       title: 'test-http',
       filterRule: 'all',
       filters: [],
@@ -157,7 +157,7 @@ describe('editAutomation()', async () => {
     });
   });
 
-  it('should edit the contents of an automation', async () => {
+  it('should edit the contents of an automation', () => {
     const automations = getAutomations();
     expect(Object.keys(automations).length).toEqual(2);
     expect(automations[firstAutomation.id]).toMatchObject({
@@ -168,7 +168,7 @@ describe('editAutomation()', async () => {
       outputs: expect.any(Array),
     });
 
-    const editedOSC = await editAutomation(firstAutomation.id, {
+    const editedOSC = editAutomation(firstAutomation.id, {
       title: 'edited-title',
       filterRule: 'any',
       filters: [],
@@ -188,9 +188,9 @@ describe('editAutomation()', async () => {
 describe('deleteAutomation()', () => {
   // saving the ID of the added automation
   let firstAutomation: Automation;
-  beforeEach(async () => {
-    await deleteAll();
-    firstAutomation = await addAutomation({
+  beforeEach(() => {
+    deleteAll();
+    firstAutomation = addAutomation({
       title: 'test-osc',
       filterRule: 'all',
       filters: [],
@@ -198,18 +198,18 @@ describe('deleteAutomation()', () => {
     });
   });
 
-  it('should remove m automation from the list', async () => {
+  it('should remove m automation from the list', () => {
     const automations = getAutomations();
     expect(Object.keys(automations).length).toEqual(1);
 
-    await deleteAutomation(Object.keys(automations)[0]);
+    deleteAutomation(Object.keys(automations)[0]);
     const removed = getAutomations();
     expect(Object.keys(removed).length).toEqual(0);
   });
 
-  it('should not remove an automation which is in use', async () => {
+  it('should not remove an automation which is in use', () => {
     const automations = getAutomations();
-    await addTrigger({
+    addTrigger({
       title: 'test-automation',
       trigger: TimerLifeCycle.onLoad,
       automationId: firstAutomation.id,
@@ -227,6 +227,6 @@ describe('deleteAutomation()', () => {
       outputs: expect.any(Array),
     });
 
-    await expect(deleteAutomation(automationId)).rejects.toThrowError();
+    expect(() => deleteAutomation(automationId)).toThrowError();
   });
 });

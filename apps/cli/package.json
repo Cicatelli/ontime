@@ -1,6 +1,10 @@
 {
     "name": "@getontime/cli",
+<<<<<<< HEAD
     "version": "3.14.3",
+=======
+    "version": "3.11.0",
+>>>>>>> parent of 1a808e15 (Merge remote-tracking branch 'upstream/master')
     "author": "Carlos Valente",
     "description": "Time keeping for live events",
     "repository": "https://github.com/cpvalente/ontime",

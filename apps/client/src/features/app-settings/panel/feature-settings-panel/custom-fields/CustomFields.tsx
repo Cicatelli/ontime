@@ -1,11 +1,15 @@
 import { useState } from 'react';
+<<<<<<< HEAD
 import { IoAdd } from 'react-icons/io5';
 import { Button } from '@chakra-ui/react';
+=======
+import { Alert, AlertDescription, AlertIcon, Button } from '@chakra-ui/react';
+import { IoAdd } from '@react-icons/all-files/io5/IoAdd';
+>>>>>>> parent of 1a808e15 (Merge remote-tracking branch 'upstream/master')
 import { CustomField, CustomFieldLabel } from 'ontime-types';
 
 import { deleteCustomField, editCustomField, postCustomField } from '../../../../../common/api/customFields';
-import Info from '../../../../../common/components/info/Info';
-import ExternalLink from '../../../../../common/components/link/external-link/ExternalLink';
+import ExternalLink from '../../../../../common/components/external-link/ExternalLink';
 import useCustomFields from '../../../../../common/hooks-query/useCustomFields';
 import { customFieldsDocsUrl } from '../../../../../externals';
 import * as Panel from '../../../panel-utils/PanelUtils';
@@ -56,17 +60,20 @@ export default function CustomFields() {
         </Panel.SubHeader>
         <Panel.Divider />
         <Panel.Section>
-          <Info>
-            Custom fields allow for additional information to be added to an event.
-            <br />
-            <br />
-            This data is not used by Ontime, but provides place for cueing or department specific information (eg.
-            light, sound, camera).
-            <br />
-            <br />
-            Custom fields can be used width the Integrations feature using the generated key.
-            <ExternalLink href={customFieldsDocsUrl}>See the docs</ExternalLink>
-          </Info>
+          <Alert status='info' variant='ontime-on-dark-info'>
+            <AlertIcon />
+            <AlertDescription>
+              Custom fields allow for additional information to be added to an event.
+              <br />
+              <br />
+              This data is not used by Ontime, but provides place for cueing or department specific information (eg.
+              light, sound, camera).
+              <br />
+              <br />
+              Custom fields can be used width the Integrations feature using the generated key.
+              <ExternalLink href={customFieldsDocsUrl}>See the docs</ExternalLink>
+            </AlertDescription>
+          </Alert>
         </Panel.Section>
         <Panel.Section>
           {isAdding && <CustomFieldForm onSubmit={handleCreate} onCancel={handleCancel} />}
@@ -74,21 +81,19 @@ export default function CustomFields() {
             <thead>
               <tr>
                 <th>Colour</th>
-                <th>Type</th>
                 <th>Name</th>
                 <th>Key (used in Integrations)</th>
                 <th />
               </tr>
             </thead>
             <tbody>
-              {Object.entries(data).map(([key, { colour, label, type }]) => {
+              {Object.entries(data).map(([key, { colour, label }]) => {
                 return (
                   <CustomFieldEntry
                     key={key}
-                    fieldKey={key}
+                    field={key}
                     colour={colour}
                     label={label}
-                    type={type}
                     onEdit={handleEditField}
                     onDelete={handleDelete}
                   />

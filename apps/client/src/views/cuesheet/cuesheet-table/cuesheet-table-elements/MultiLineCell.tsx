@@ -17,7 +17,6 @@ function MultiLineCell(props: MultiLineCellProps) {
 
   const { value, onChange, onBlur, onKeyDown } = useReactiveTextInput(initialValue, submitCallback, ref, {
     submitOnCtrlEnter: true,
-    allowKeyboardNavigation: true,
   });
 
   return (

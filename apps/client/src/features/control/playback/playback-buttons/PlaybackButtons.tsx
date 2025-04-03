@@ -1,5 +1,8 @@
+<<<<<<< HEAD
 import { useMemo } from 'react';
 import { IoPause, IoPlay, IoPlaySkipBack, IoPlaySkipForward, IoReload, IoStop, IoTime } from 'react-icons/io5';
+=======
+>>>>>>> parent of 1a808e15 (Merge remote-tracking branch 'upstream/master')
 import { Tooltip } from '@chakra-ui/react';
 import { Playback, TimerPhase } from 'ontime-types';
 import { validatePlayback } from 'ontime-utils';
@@ -29,7 +32,7 @@ export default function PlaybackButtons(props: PlaybackButtonsProps) {
   const isLast = selectedEventIndex === numEvents - 1;
   const noEvents = numEvents === 0;
 
-  const disableGo = isRolling || noEvents;
+  const disableGo = isRolling || noEvents || (isLast && !isArmed);
   const disableNext = isRolling || noEvents || isLast;
   const disablePrev = isRolling || noEvents || isFirst;
 
@@ -40,16 +43,14 @@ export default function PlaybackButtons(props: PlaybackButtonsProps) {
   const disableStop = !playbackCan.stop;
   const disableReload = !playbackCan.reload;
 
-  const [goModeAction, goModeText] = useMemo(() => {
+  const goModeText = selectedEventIndex === null || isArmed ? 'Start' : 'Next';
+  const goModeAction = () => {
     if (isArmed) {
-      return [setPlayback.start, 'Start'];
-    } else if (isLast) {
-      return [setPlayback.stop, 'Finish'];
-    } else if (selectedEventIndex === null) {
-      return [setPlayback.startNext, 'Start'];
+      setPlayback.start();
+    } else {
+      setPlayback.startNext();
     }
-    return [setPlayback.startNext, 'Next'];
-  }, [isArmed, isLast, selectedEventIndex]);
+  };
 
   return (
     <div className={style.buttonContainer}>

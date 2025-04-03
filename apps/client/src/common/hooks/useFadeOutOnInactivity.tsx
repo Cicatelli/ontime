@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { throttle } from '../utils/throttle';
-
+import { throttle } from '../../common/utils/throttle';
 
 export const useFadeOutOnInactivity = () => {
   const [isMouseMoved, setIsMouseMoved] = useState(false);

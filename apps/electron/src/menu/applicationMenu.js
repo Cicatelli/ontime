@@ -234,10 +234,6 @@ function makeSettingsMenu(redirectWindow) {
             label: 'URL presets',
             click: () => redirectWindow('/editor?settings=feature_settings__urlpresets'),
           },
-          {
-            label: 'Report',
-            click: () => redirectWindow('/editor?settings=feature_settings__report'),
-          },
         ],
       },
       {
@@ -254,29 +250,21 @@ function makeSettingsMenu(redirectWindow) {
         ],
       },
       {
-        label: 'Automation',
+        label: 'Integrations',
         submenu: [
           {
-            label: 'Automation settings',
-            click: () => redirectWindow('/editor?settings=automation__settings'),
+            label: 'OSC settings',
+            click: () => redirectWindow('/editor?settings=integrations__osc'),
           },
           {
-            label: 'Manage automations',
-            click: () => redirectWindow('/editor?settings=automation__automations'),
-          },
-          {
-            label: 'Manage triggers',
-            click: () => redirectWindow('/editor?settings=automation__triggers'),
+            label: 'HTTP settings',
+            click: () => redirectWindow('/editor?settings=integrations__http'),
           },
         ],
       },
       {
         label: 'Network',
         submenu: [
-          {
-            label: 'Share link',
-            click: () => redirectWindow('/editor?settings=network__link'),
-          },
           {
             label: 'Event log',
             click: () => redirectWindow('/editor?settings=network__log'),

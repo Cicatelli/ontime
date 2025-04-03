@@ -1,6 +1,10 @@
 {
   "name": "ontime-ui",
+<<<<<<< HEAD
   "version": "3.14.3",
+=======
+  "version": "3.11.0",
+>>>>>>> parent of 1a808e15 (Merge remote-tracking branch 'upstream/master')
   "private": true,
   "type": "module",
   "dependencies": {
@@ -14,7 +18,6 @@
     "@fontsource/open-sans": "^5.0.28",
     "@mantine/hooks": "^7.13.3",
     "@sentry/react": "^8.43.0",
-    "@table-nav/react": "^0.0.7",
     "@tanstack/react-query": "^5.62.7",
     "@tanstack/react-query-devtools": "^5.62.7",
     "@tanstack/react-table": "^8.20.5",
@@ -32,7 +35,7 @@
     "react-qr-code": "^2.0.12",
     "react-router-dom": "^6.3.0",
     "web-vitals": "^3.1.1",
-    "zustand": "^5.0.3"
+    "zustand": "^4.5.2"
   },
   "scripts": {
     "addversion": "node -p \"'export const ONTIME_VERSION = ' + JSON.stringify(require('../../package.json').version) + ';'\" > src/ONTIME_VERSION.js",

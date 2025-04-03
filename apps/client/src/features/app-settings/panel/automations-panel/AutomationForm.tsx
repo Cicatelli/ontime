@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
+<<<<<<< HEAD
 import { IoAdd, IoTrash } from 'react-icons/io5';
 import { Button, IconButton, Input, Radio, RadioGroup, Select } from '@chakra-ui/react';
 import {
@@ -12,11 +13,26 @@ import {
   OntimeAction,
   OSCOutput,
 } from 'ontime-types';
+=======
+import {
+  Alert,
+  AlertDescription,
+  AlertIcon,
+  Button,
+  IconButton,
+  Input,
+  Radio,
+  RadioGroup,
+  Select,
+} from '@chakra-ui/react';
+import { IoAdd } from '@react-icons/all-files/io5/IoAdd';
+import { IoTrash } from '@react-icons/all-files/io5/IoTrash';
+import { Automation, AutomationDTO, HTTPOutput, isHTTPOutput, isOSCOutput, OSCOutput } from 'ontime-types';
+>>>>>>> parent of 1a808e15 (Merge remote-tracking branch 'upstream/master')
 
 import { addAutomation, editAutomation, testOutput } from '../../../../common/api/automation';
 import { maybeAxiosError } from '../../../../common/api/utils';
-import Info from '../../../../common/components/info/Info';
-import ExternalLink from '../../../../common/components/link/external-link/ExternalLink';
+import ExternalLink from '../../../../common/components/external-link/ExternalLink';
 import Tag from '../../../../common/components/tag/Tag';
 import useAutomationSettings from '../../../../common/hooks-query/useAutomationSettings';
 import useCustomFields from '../../../../common/hooks-query/useCustomFields';
@@ -26,11 +42,10 @@ import * as Panel from '../../panel-utils/PanelUtils';
 
 import TemplateInput from './template-input/TemplateInput';
 import { isAutomation, makeFieldList } from './automationUtils';
-import OntimeActionForm from './OntimeActionForm';
 
 import style from './AutomationForm.module.scss';
 
-const integrationsDocsUrl = 'https://docs.getontime.no/api/automation/#using-variables-in-automation';
+const integrationsDocsUrl = 'https://docs.getontime.no/api/integrations/#using-variables-in-integrations';
 
 interface AutomationFormProps {
   automation: Automation | AutomationDTO;
@@ -51,7 +66,6 @@ export default function AutomationForm(props: AutomationFormProps) {
     register,
     setError,
     setFocus,
-    setValue,
     formState: { errors, isSubmitting, isDirty, isValid },
   } = useForm<AutomationDTO>({
     mode: 'onChange',
@@ -102,11 +116,6 @@ export default function AutomationForm(props: AutomationFormProps) {
     appendOutput({ type: 'http', url: '' });
   };
 
-  const handleAddnewOntimeAction = () => {
-    // @ts-expect-error -- we dont want to choose an action
-    appendOutput({ type: 'ontime', action: undefined });
-  };
-
   const handleTestOSCOutput = async (index: number) => {
     try {
       const values = getValues(`outputs.${index}`) as OSCOutput;
@@ -137,19 +146,6 @@ export default function AutomationForm(props: AutomationFormProps) {
       });
     } catch (_error) {
       /** we dont handle errors here, users should use the network tab */
-    }
-  };
-
-  const handleTestOntimeAction = async (index: number) => {
-    try {
-      const values = getValues(`outputs.${index}`) as OntimeAction;
-      // NOTE: there is no meaningful validation to do here, we let the server deal with the data
-      await testOutput({
-        ...values,
-        type: 'ontime',
-      });
-    } catch (_error) {
-      /** we dont handle errors here */
     }
   };
 
@@ -209,7 +205,7 @@ export default function AutomationForm(props: AutomationFormProps) {
       </div>
 
       <div className={style.innerSection}>
-        <h3>Filters (optional)</h3>
+        <h3>Filters</h3>
         <div className={style.ruleSection}>
           <label>
             Trigger outputs if
@@ -224,80 +220,74 @@ export default function AutomationForm(props: AutomationFormProps) {
               )}
             />
           </label>
-          {fieldFilters.map((field, index) => {
-            const key = `filters.${index}.field.${field.id}`;
-            return (
-              <div key={key} className={style.filterSection}>
-                <label>
-                  Runtime data source
-                  <Select
-                    {...register(`filters.${index}.field`, { required: { value: true, message: 'Required field' } })}
-                    size='sm'
-                    variant='ontime'
-                  >
-                    <option selected hidden disabled value=''>
-                      Event field
+          {fieldFilters.map((field, index) => (
+            <div key={field.id} className={style.filterSection}>
+              <label>
+                Runtime data source
+                <Select
+                  {...register(`filters.${index}.field`, { required: { value: true, message: 'Required field' } })}
+                  size='sm'
+                  variant='ontime'
+                >
+                  <option selected hidden disabled value=''>
+                    Event field
+                  </option>
+                  {fieldList.map(({ value, label }) => (
+                    <option key={value} value={value}>
+                      {label}
                     </option>
-                    {fieldList.map(({ value, label }, localIndex) => {
-                      const key = `filters.${index}.field.${localIndex}`;
-                      return (
-                        <option key={key} value={value}>
-                          {label}
-                        </option>
-                      );
-                    })}
-                  </Select>
-                  <Panel.Error>{errors.filters?.[index]?.field?.message}</Panel.Error>
-                </label>
-                <label>
-                  Matching condition
-                  <Select
-                    {...register(`filters.${index}.operator`, { required: { value: true, message: 'Required field' } })}
-                    size='sm'
-                    variant='ontime'
-                  >
-                    <option selected hidden disabled value=''>
-                      Operator
-                    </option>
-                    <option value='equals'>equals</option>
-                    <option value='not_equals'>not equals</option>
-                    <option value='contains'>contains</option>
-                    {/* 
+                  ))}
+                </Select>
+                <Panel.Error>{errors.filters?.[index]?.field?.message}</Panel.Error>
+              </label>
+              <label>
+                Matching condition
+                <Select
+                  {...register(`filters.${index}.operator`, { required: { value: true, message: 'Required field' } })}
+                  size='sm'
+                  variant='ontime'
+                >
+                  <option selected hidden disabled value=''>
+                    Operator
+                  </option>
+                  <option value='equals'>equals</option>
+                  <option value='not_equals'>not equals</option>
+                  <option value='contains'>contains</option>
+                  {/* 
                   We dont currently offer a data source where these operators would make sense
                   <option value='greater_than'>greater than</option>
                   <option value='less_than'>less than</option> 
                   */}
-                  </Select>
-                  <Panel.Error>{errors.filters?.[index]?.operator?.message}</Panel.Error>
-                </label>
-                <label>
-                  Value to match
-                  <Input
-                    {...register(`filters.${index}.value`)}
-                    variant='ontime-filled'
-                    size='sm'
-                    placeholder='<empty / no value>'
-                    autoComplete='off'
-                  />
-                </label>
+                </Select>
+                <Panel.Error>{errors.filters?.[index]?.operator?.message}</Panel.Error>
+              </label>
+              <label>
+                Value to match
+                <Input
+                  {...register(`filters.${index}.value`)}
+                  variant='ontime-filled'
+                  size='sm'
+                  placeholder='<empty / no value>'
+                  autoComplete='off'
+                />
+              </label>
+              <div>
+                <span>&nbsp;</span>
                 <div>
-                  <span>&nbsp;</span>
-                  <div>
-                    <IconButton
-                      aria-label='Delete'
-                      icon={<IoTrash />}
-                      variant='ontime-ghosted'
-                      size='sm'
-                      color='#FA5656' // $red-500
-                      onClick={() => removeFilter(index)}
-                      isDisabled={false}
-                      isLoading={false}
-                    />
-                  </div>
+                  <IconButton
+                    aria-label='Delete'
+                    icon={<IoTrash />}
+                    variant='ontime-ghosted'
+                    size='sm'
+                    color='#FA5656' // $red-500
+                    onClick={() => removeFilter(index)}
+                    isDisabled={false}
+                    isLoading={false}
+                  />
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
           <div>
             <Button
               variant='ontime-subtle'
@@ -316,10 +306,13 @@ export default function AutomationForm(props: AutomationFormProps) {
 
       <div className={style.innerColumn}>
         <h3>Outputs</h3>
-        <Info>
-          Automation outputs can be used to send data from Ontime to external software.
-          <ExternalLink href={integrationsDocsUrl}>See the documentation for templates</ExternalLink>
-        </Info>
+        <Alert status='info' variant='ontime-on-dark-info'>
+          <AlertIcon />
+          <AlertDescription>
+            Automation outputs can be used to send data from Ontime to external software.
+            <ExternalLink href={integrationsDocsUrl}>See the documentation for templates</ExternalLink>
+          </AlertDescription>
+        </Alert>
 
         {fieldOutputs.map((output, index) => {
           if (isOSCOutput(output)) {
@@ -379,13 +372,13 @@ export default function AutomationForm(props: AutomationFormProps) {
                     <Panel.Error>{rowErrors?.address?.message}</Panel.Error>
                   </label>
                   <label>
-                    Arguments
+                    Parameters
                     <TemplateInput
                       {...register(`outputs.${index}.args`)}
-                      value={output.args}
                       variant='ontime-filled'
                       size='sm'
                       placeholder='1'
+                      autoComplete='off'
                     />
                     <Panel.Error>{rowErrors?.args?.message}</Panel.Error>
                   </label>
@@ -402,6 +395,8 @@ export default function AutomationForm(props: AutomationFormProps) {
                         size='sm'
                         onClick={() => removeOutput(index)}
                         color='#FA5656' // $red-500
+                        isDisabled={false}
+                        isLoading={false}
                       />
                     </Panel.InlineElements>
                   </div>
@@ -449,6 +444,8 @@ export default function AutomationForm(props: AutomationFormProps) {
                         size='sm'
                         onClick={() => removeOutput(index)}
                         color='#FA5656' // $red-500
+                        isDisabled={false}
+                        isLoading={false}
                       />
                     </Panel.InlineElements>
                   </div>
@@ -456,58 +453,29 @@ export default function AutomationForm(props: AutomationFormProps) {
               </div>
             );
           }
-
-          if (isOntimeAction(output)) {
-            const rowErrors = errors.outputs?.[index] as
-              | {
-                  action?: { message?: string };
-                  time?: { message?: string };
-                  text?: { message?: string };
-                  visible?: { message?: string };
-                  secondarySource?: { message?: string };
-                }
-              | undefined;
-            return (
-              <div key={output.id} className={style.outputCard}>
-                <Tag>Ontime action</Tag>
-                <OntimeActionForm
-                  value={output.action}
-                  index={index}
-                  register={register}
-                  rowErrors={rowErrors}
-                  setValue={setValue}
-                >
-                  <span>&nbsp;</span>
-                  <Panel.InlineElements relation='inner'>
-                    <Button size='sm' variant='ontime-ghosted-white' onClick={() => handleTestOntimeAction(index)}>
-                      Test
-                    </Button>
-                    <IconButton
-                      aria-label='Delete'
-                      icon={<IoTrash />}
-                      variant='ontime-ghosted'
-                      size='sm'
-                      onClick={() => removeOutput(index)}
-                      color='#FA5656' // $red-500
-                    />
-                  </Panel.InlineElements>
-                </OntimeActionForm>
-              </div>
-            );
-          }
-
           // there should be no other output types
           return null;
         })}
         <Panel.InlineElements relation='inner'>
-          <Button variant='ontime-subtle' rightIcon={<IoAdd />} size='sm' onClick={handleAddNewOSCOutput}>
+          <Button
+            variant='ontime-subtle'
+            rightIcon={<IoAdd />}
+            size='sm'
+            onClick={handleAddNewOSCOutput}
+            isDisabled={false}
+            isLoading={false}
+          >
             OSC
           </Button>
-          <Button variant='ontime-subtle' rightIcon={<IoAdd />} size='sm' onClick={handleAddNewHTTPOutput}>
+          <Button
+            variant='ontime-subtle'
+            rightIcon={<IoAdd />}
+            size='sm'
+            onClick={handleAddNewHTTPOutput}
+            isDisabled={false}
+            isLoading={false}
+          >
             HTTP
-          </Button>
-          <Button variant='ontime-subtle' rightIcon={<IoAdd />} size='sm' onClick={handleAddnewOntimeAction}>
-            Ontime action
           </Button>
         </Panel.InlineElements>
       </div>

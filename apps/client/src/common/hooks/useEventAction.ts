@@ -55,17 +55,6 @@ export const useEventAction = () => {
     defaultEndAction,
   } = useEditorSettings();
 
-  const getEventById = useCallback(
-    (eventId: string) => {
-      const cachedRundown = queryClient.getQueryData<RundownCached>(RUNDOWN);
-      if (!cachedRundown?.rundown) {
-        return;
-      }
-      return cachedRundown.rundown[eventId];
-    },
-    [queryClient],
-  );
-
   /**
    * Calls mutation to add new event
    * @private
@@ -626,7 +615,6 @@ export const useEventAction = () => {
     batchUpdateEvents,
     deleteEvent,
     deleteAllEvents,
-    getEventById,
     reorderEvent,
     swapEvents,
     updateEvent,

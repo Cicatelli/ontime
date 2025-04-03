@@ -1,4 +1,3 @@
-import type { SecondarySource } from '../runtime/MessageControl.type.js';
 import type { TimerLifeCycle } from './TimerLifecycle.type.js';
 
 export type AutomationSettings = {
@@ -39,7 +38,7 @@ export type AutomationFilter = {
   value: string; // we use string but would coerce to the field value
 };
 
-export type AutomationOutput = OSCOutput | HTTPOutput | OntimeAction;
+export type AutomationOutput = OSCOutput | HTTPOutput;
 
 export type OSCOutput = {
   type: 'osc';
@@ -53,25 +52,3 @@ export type HTTPOutput = {
   type: 'http';
   url: string;
 };
-
-export type OntimeAction =
-  | {
-      type: 'ontime';
-      action: 'aux-start' | 'aux-stop' | 'aux-pause';
-    }
-  | {
-      type: 'ontime';
-      action: 'aux-set';
-      time: number;
-    }
-  | {
-      type: 'ontime';
-      action: 'message-set';
-      text?: string;
-      visible?: boolean;
-    }
-  | {
-      type: 'ontime';
-      action: 'message-secondary';
-      secondarySource: SecondarySource;
-    };

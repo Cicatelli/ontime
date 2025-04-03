@@ -11,10 +11,6 @@ interface TimeInputDurationProps {
   onSubmit: (value: string) => void;
 }
 
-interface ParentFocusableInput extends HTMLInputElement {
-  focusParentElement: () => void;
-}
-
 export default memo(TimeInputDuration);
 
 function TimeInputDuration(props: PropsWithChildren<TimeInputDurationProps>) {
@@ -22,8 +18,7 @@ function TimeInputDuration(props: PropsWithChildren<TimeInputDurationProps>) {
 
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(initialValue);
-  const inputRef = useRef<ParentFocusableInput>(null);
-  const textRef = useRef<ParentFocusableInput>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // when we go into edit mode, set focus to the input
   useEffect(() => {
@@ -41,10 +36,7 @@ function TimeInputDuration(props: PropsWithChildren<TimeInputDurationProps>) {
   }, [initialValue, isEditing]);
 
   const handleFakeFocus = () => setIsEditing(true);
-  const handleFakeBlur = () => {
-    setIsEditing(false);
-    setTimeout(() => textRef.current?.focusParentElement()); // Immediate timeout to ensure state change takes place first
-  };
+  const handleFakeBlur = () => setIsEditing(false);
 
   const handleUpdate = useCallback(
     (newValue: string) => {
@@ -53,33 +45,28 @@ function TimeInputDuration(props: PropsWithChildren<TimeInputDurationProps>) {
       // if the user sends an empty string, we want to clear the value
       if (newValue === '') {
         onSubmit(newValue);
-        inputRef.current?.focusParentElement();
         return;
       }
 
       // we dont know the values in the rundown, escalate to handler
       if (newValue.startsWith('p') || newValue.startsWith('+')) {
         onSubmit(newValue);
-        inputRef.current?.focusParentElement();
         return;
       }
 
       const valueInMillis = parseUserTime(newValue);
       if (valueInMillis < 0 || isNaN(valueInMillis)) {
         setValue(initialValue);
-        setTimeout(() => textRef.current?.focusParentElement()); // Immediate timeout to ensure state change takes place first
         return;
       }
 
       // if the value is the same, we may still want to push the lock change
       if (valueInMillis === initialValue && lockedValue) {
-        inputRef.current?.focusParentElement();
         return;
       }
 
       onSubmit(newValue);
       setValue(Number(newValue));
-      setTimeout(() => textRef.current?.focusParentElement()); // Immediate timeout to ensure state change takes place first
     },
     [initialValue, lockedValue, onSubmit],
   );
@@ -95,13 +82,7 @@ function TimeInputDuration(props: PropsWithChildren<TimeInputDurationProps>) {
       handleCancelUpdate={handleFakeBlur}
     />
   ) : (
-    <TextLikeInput
-      onClick={handleFakeFocus}
-      onFocus={handleFakeFocus}
-      muted={!lockedValue}
-      delayed={delayed}
-      ref={textRef}
-    >
+    <TextLikeInput onClick={handleFakeFocus} onFocus={handleFakeFocus} muted={!lockedValue} delayed={delayed}>
       {children}
     </TextLikeInput>
   );

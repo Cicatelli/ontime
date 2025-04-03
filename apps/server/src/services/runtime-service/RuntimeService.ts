@@ -20,8 +20,6 @@ import type { RuntimeState } from '../../stores/runtimeState.js';
 import { timerConfig } from '../../config/config.js';
 import { eventStore } from '../../stores/EventStore.js';
 
-import { triggerReportEntry } from '../../api-data/report/report.service.js';
-
 import { EventTimer } from '../EventTimer.js';
 import { RestorePoint, restoreService } from '../RestoreService.js';
 import {
@@ -290,17 +288,14 @@ class RuntimeService {
       logger.warning(LogOrigin.Playback, `Refused skipped event with ID ${event.id}`);
       return false;
     }
-    const previousState = runtimeState.getState();
 
     const rundown = getRundown();
     const success = runtimeState.load(event, rundown, initialData);
 
     if (success) {
       logger.info(LogOrigin.Playback, `Loaded event with ID ${event.id}`);
-      const newState = runtimeState.getState();
       process.nextTick(() => {
-        triggerReportEntry(TimerLifeCycle.onStop, previousState);
-        triggerAutomations(TimerLifeCycle.onLoad, newState);
+        triggerAutomations(TimerLifeCycle.onLoad, runtimeState.getState());
       });
     }
     return success;
@@ -479,7 +474,6 @@ class RuntimeService {
 
     if (didStart) {
       process.nextTick(() => {
-        triggerReportEntry(TimerLifeCycle.onStart, newState);
         triggerAutomations(TimerLifeCycle.onStart, newState);
       });
     }
@@ -542,8 +536,8 @@ class RuntimeService {
    */
   @broadcastResult
   public stop(): boolean {
-    const previousState = runtimeState.getState();
-    const canStop = validatePlayback(previousState.timer.playback, previousState.timer.phase).stop;
+    const state = runtimeState.getState();
+    const canStop = validatePlayback(state.timer.playback, state.timer.phase).stop;
     if (!canStop) {
       return false;
     }
@@ -552,7 +546,6 @@ class RuntimeService {
       const newState = runtimeState.getState();
       logger.info(LogOrigin.Playback, `Play Mode ${newState.timer.playback.toUpperCase()}`);
       process.nextTick(() => {
-        triggerReportEntry(TimerLifeCycle.onStop, previousState);
         triggerAutomations(TimerLifeCycle.onStop, newState);
       });
 
@@ -605,14 +598,12 @@ class RuntimeService {
       if (result.eventId !== previousState.eventNow?.id) {
         logger.info(LogOrigin.Playback, `Loaded event with ID ${result.eventId}`);
         process.nextTick(() => {
-          triggerReportEntry(TimerLifeCycle.onStop, previousState);
           triggerAutomations(TimerLifeCycle.onLoad, newState);
         });
       }
 
       if (result.didStart) {
         process.nextTick(() => {
-          triggerReportEntry(TimerLifeCycle.onStart, newState);
           triggerAutomations(TimerLifeCycle.onStart, newState);
         });
       }

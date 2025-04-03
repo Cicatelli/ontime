@@ -39,6 +39,5 @@ export function getShouldTimerUpdate(previousValue: MaybeNumber, currentValue: M
 export function getForceUpdate(previousUpdate: number, now: number): boolean {
   const isClockBehind = now < previousUpdate;
   const hasExceededRate = now - previousUpdate >= timerConfig.notificationRate;
-  const newSeconds = millisToSeconds(previousUpdate) !== millisToSeconds(now);
-  return isClockBehind || hasExceededRate || newSeconds;
+  return isClockBehind || hasExceededRate;
 }

@@ -9,12 +9,11 @@ interface EventTextInputProps extends InputProps {
   field: EditorUpdateFields;
   label: string;
   initialValue: string;
-  placeholder?: string;
   submitHandler: (field: EditorUpdateFields, value: string) => void;
 }
 
 export default function EventTextInput(props: EventTextInputProps) {
-  const { className, field, label, initialValue, style: givenStyles, submitHandler, maxLength, placeholder } = props;
+  const { field, label, initialValue, submitHandler, maxLength } = props;
   const ref = useRef<HTMLInputElement | null>(null);
   const submitCallback = useCallback((newValue: string) => submitHandler(field, newValue), [field, submitHandler]);
 
@@ -24,9 +23,7 @@ export default function EventTextInput(props: EventTextInputProps) {
 
   return (
     <div>
-      <Editor.Label className={className} htmlFor={field} style={givenStyles}>
-        {label}
-      </Editor.Label>
+      <Editor.Label htmlFor={field}>{label}</Editor.Label>
       <Input
         id={field}
         ref={ref}
@@ -35,7 +32,6 @@ export default function EventTextInput(props: EventTextInputProps) {
         data-testid='input-textfield'
         value={value}
         maxLength={maxLength || 100}
-        placeholder={placeholder}
         onChange={onChange}
         onBlur={onBlur}
         onKeyDown={onKeyDown}

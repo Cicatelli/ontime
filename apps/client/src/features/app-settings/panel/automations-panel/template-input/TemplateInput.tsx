@@ -1,6 +1,6 @@
-import { forwardRef, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { type InputProps, Input } from '@chakra-ui/react';
-import { mergeRefs, useClickOutside } from '@mantine/hooks';
+import { useClickOutside } from '@mantine/hooks';
 
 import useCustomFields from '../../../../../common/hooks-query/useCustomFields';
 
@@ -10,10 +10,10 @@ import style from './TemplateInput.module.scss';
 
 interface TemplateInputProps extends InputProps {}
 
-const TemplateInput = forwardRef(function TemplateInput(props: TemplateInputProps, ref) {
+export default function TemplateInput(props: TemplateInputProps) {
   const { value, onChange, ...rest } = props;
   const { data } = useCustomFields();
-  const localRef = useClickOutside(() => setShowSuggestions(false));
+  const ref = useClickOutside(() => setShowSuggestions(false));
 
   const autocompleteList = useMemo(() => {
     return makeAutoCompleteList(data);
@@ -31,13 +31,15 @@ const TemplateInput = forwardRef(function TemplateInput(props: TemplateInputProp
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(event.target.value);
 
-    if (event.target.value.endsWith('{')) {
+    if (event.target.value.endsWith('{{')) {
       setShowSuggestions(true);
-      setSuggestions(updateSuggestions(event.target.value));
     } else if (event.target.value === '' || event.target.value.endsWith('}}')) {
       setShowSuggestions(false);
-    } else if (showSuggestions) {
-      setSuggestions(updateSuggestions(event.target.value));
+    }
+
+    if (showSuggestions) {
+      const suggestions = updateSuggestions(event.target.value);
+      setSuggestions(suggestions);
     }
 
     onChange?.(event);
@@ -52,8 +54,8 @@ const TemplateInput = forwardRef(function TemplateInput(props: TemplateInputProp
   };
 
   return (
-    <div className={style.wrapper} ref={mergeRefs(localRef, ref)}>
-      <Input value={inputValue} {...rest} onChange={handleInputChange} autoComplete='off' autoCorrect='off' />
+    <div className={style.wrapper} ref={ref}>
+      <Input {...rest} value={inputValue} onChange={handleInputChange} autoComplete='off' autoCorrect='off' />
       {showSuggestions && suggestions.length > 0 && (
         <ul className={style.suggestions}>
           {suggestions.map((suggestion) => (
@@ -65,6 +67,4 @@ const TemplateInput = forwardRef(function TemplateInput(props: TemplateInputProp
       )}
     </div>
   );
-});
-
-export default TemplateInput;
+}

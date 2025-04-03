@@ -133,8 +133,7 @@ export const validateFilenameParam = [
     .customSanitizer((input: string) => sanitize(input))
     .withMessage('Failed to sanitize the filename')
     .notEmpty()
-    .withMessage('Filename was empty or contained only invalid characters')
-    .customSanitizer((input: string) => ensureJsonExtension(input)),
+    .withMessage('Filename was empty or contained only invalid characters'),
 
   (req: Request, res: Response, next: NextFunction) => {
     const errors = validationResult(req);

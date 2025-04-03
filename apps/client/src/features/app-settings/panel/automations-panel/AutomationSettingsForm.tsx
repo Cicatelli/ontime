@@ -1,13 +1,11 @@
 import { Controller, useForm } from 'react-hook-form';
-import { Button, Input, Switch } from '@chakra-ui/react';
+import { Alert, AlertDescription, AlertIcon, Button, Input, Switch } from '@chakra-ui/react';
 
 import { editAutomationSettings } from '../../../../common/api/automation';
 import { maybeAxiosError } from '../../../../common/api/utils';
-import Info from '../../../../common/components/info/Info';
-import ExternalLink from '../../../../common/components/link/external-link/ExternalLink';
+import ExternalLink from '../../../../common/components/external-link/ExternalLink';
 import { preventEscape } from '../../../../common/utils/keyEvent';
 import { isOnlyNumbers } from '../../../../common/utils/regex';
-import { isOntimeCloud } from '../../../../externals';
 import * as Panel from '../../panel-utils/PanelUtils';
 
 const oscApiDocsUrl = 'https://docs.getontime.no/api/protocols/osc/';
@@ -77,13 +75,14 @@ export default function AutomationSettingsForm(props: AutomationSettingsProps) {
       <Panel.Divider />
 
       <Panel.Section>
-        <Info>
-          <p>Control Ontime and share its data with external systems in your workflow.</p>
-          <p>- Automations allow Ontime to send its data on lifecycle triggers.</p>
-          <p>- OSC Input tells Ontime to listen to messages on the specific port.</p>
-          <br />
-          <ExternalLink href={oscApiDocsUrl}>See the docs</ExternalLink>
-        </Info>
+        <Alert status='info' variant='ontime-on-dark-info'>
+          <AlertIcon />
+          <AlertDescription>
+            Control Ontime and share its data with external systems in your workflow. <br />
+            - Automations allow Ontime to send its data on lifecycle triggers. <br />- OSC Input tells Ontime to listen
+            to messages on the specific port. <ExternalLink href={oscApiDocsUrl}>See the docs</ExternalLink>
+          </AlertDescription>
+        </Alert>
       </Panel.Section>
 
       <Panel.Section
@@ -113,9 +112,7 @@ export default function AutomationSettingsForm(props: AutomationSettingsProps) {
         </Panel.ListGroup>
 
         <Panel.Title>OSC Input</Panel.Title>
-
         <Panel.ListGroup>
-          {isOntimeCloud && <Info>For security reasons OSC integrations are not available in the cloud service.</Info>}
           <Panel.ListItem>
             <Panel.Field
               title='OSC input'
