@@ -1,13 +1,16 @@
 import {
   isHTTPOutput,
+  isOntimeAction,
   isOSCOutput,
+  LogOrigin,
+  TimerLifeCycle,
   type AutomationFilter,
   type AutomationOutput,
   type FilterRule,
-  type TimerLifeCycle,
 } from 'ontime-types';
 import { getPropertyFromPath } from 'ontime-utils';
 
+import { logger } from '../../classes/Logger.js';
 import { getState, type RuntimeState } from '../../stores/runtimeState.js';
 import { isOntimeCloud } from '../../externals.js';
 
@@ -15,18 +18,26 @@ import { emitOSC } from './clients/osc.client.js';
 import { emitHTTP } from './clients/http.client.js';
 import { getAutomationsEnabled, getAutomations, getAutomationTriggers } from './automation.dao.js';
 import { isBooleanEquals, isGreaterThan, isLessThan } from './automation.utils.js';
+import { toOntimeAction } from './clients/ontime.client.js';
 
 /**
  * Exposes a method for triggering actions based on a TimerLifeCycle event
  */
-export function triggerAutomations(event: TimerLifeCycle, state: RuntimeState) {
+export function triggerAutomations(cycle: TimerLifeCycle, state: RuntimeState) {
   if (!getAutomationsEnabled()) {
     return;
   }
 
-  const triggers = getAutomationTriggers();
-  const triggerAutomations = triggers.filter((trigger) => trigger.trigger === event);
-  if (triggerAutomations.length === 0) {
+  let triggers = getAutomationTriggers();
+
+  // get triggers from event
+  if (state.eventNow?.triggers) {
+    triggers = triggers.concat(state.eventNow.triggers);
+  }
+
+  // note: there are no onStop triggers in event
+  const filteredTrigger = triggers.filter((trigger) => trigger.trigger === cycle);
+  if (filteredTrigger.length === 0) {
     return;
   }
 
@@ -35,9 +46,9 @@ export function triggerAutomations(event: TimerLifeCycle, state: RuntimeState) {
     return;
   }
 
-  triggerAutomations.forEach((trigger) => {
+  filteredTrigger.forEach((trigger) => {
     const automation = automations[trigger.automationId];
-    if (!automation) {
+    if (!automation || automation.outputs.length === 0) {
       return;
     }
     const shouldSend = testConditions(automation.filters, automation.filterRule, state);
@@ -117,12 +128,14 @@ export function testConditions(
 function send(output: AutomationOutput[], state?: RuntimeState) {
   const stateSnapshot = state ?? getState();
   output.forEach((payload) => {
-    if (isOSCOutput(payload)) {
-      if (!isOntimeCloud) {
-        emitOSC(payload, stateSnapshot);
-      }
+    if (isOSCOutput(payload) && !isOntimeCloud) {
+      emitOSC(payload, stateSnapshot);
     } else if (isHTTPOutput(payload)) {
       emitHTTP(payload, stateSnapshot);
+    } else if (isOntimeAction(payload)) {
+      toOntimeAction(payload);
+    } else {
+      logger.warning(LogOrigin.Tx, `Unknown output type: ${payload}`);
     }
   });
 }

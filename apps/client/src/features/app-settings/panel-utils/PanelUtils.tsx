@@ -105,8 +105,8 @@ export function BlockQuote({ children }: { children: ReactNode }) {
   return <blockquote className={style.blockquote}>{children}</blockquote>;
 }
 
-export function Error({ children }: { children: ReactNode }) {
-  return <div className={style.fieldError}>{children}</div>;
+export function Error({ children, className }: { children: ReactNode } & JSX.IntrinsicElements['div']) {
+  return <div className={cx([style.fieldError, className])}>{children}</div>;
 }
 
 export function Divider() {
@@ -128,7 +128,7 @@ type AllowedInlineTags = 'div' | 'td';
 type InlineProps<C extends AllowedInlineTags> = {
   as?: C;
   relation?: 'inner' | 'component' | 'section';
-  align?: 'start' | 'end';
+  align?: 'start' | 'end' | 'apart';
   className?: string;
 };
 

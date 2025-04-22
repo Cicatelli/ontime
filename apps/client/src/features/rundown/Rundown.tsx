@@ -269,8 +269,9 @@ export default function Rundown({ data }: RundownProps) {
   // all events before the current selected are in the past
   let isPast = Boolean(featureData?.selectedEventId);
   let isNextDay = false;
+  let totalGap = 0;
   const isEditMode = appMode === AppMode.Edit;
-
+  let isLinkedToLoaded = true; //check if the event can link all the way back to the currently playing event
   return (
     <div className={style.rundownContainer} ref={scrollRef} data-testid='rundown'>
       <DndContext onDragEnd={handleOnDragEnd} sensors={sensors} collisionDetection={closestCenter}>
@@ -297,6 +298,11 @@ export default function Rundown({ data }: RundownProps) {
 
                 if (isPlayableEvent(entry)) {
                   isNextDay = checkIsNextDay(entry, lastEvent);
+                  if (!isPast) {
+                    totalGap += entry.gap;
+                    // We also include countToEnd in this test as the behavior of a linked event coming after a countToEnd is simelar to an unlinked event
+                    isLinkedToLoaded = isLinkedToLoaded && entry.linkStart !== null && !lastEvent?.countToEnd;
+                  }
                   if (isNewLatest(entry, lastEvent)) {
                     // populate previous entry
                     thisEvent = entry;
@@ -331,6 +337,8 @@ export default function Rundown({ data }: RundownProps) {
                         playback={isLoaded ? featureData.playback : undefined}
                         isRolling={featureData.playback === Playback.Roll}
                         isNextDay={isNextDay}
+                        totalGap={totalGap}
+                        isLinkedToLoaded={isLinkedToLoaded}
                       />
                     </div>
                   </div>

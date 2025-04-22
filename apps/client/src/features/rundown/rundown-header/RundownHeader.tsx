@@ -1,5 +1,7 @@
 import { Button, ButtonGroup } from '@chakra-ui/react';
+import { OffsetMode } from 'ontime-types';
 
+import { setOffsetMode, useOffsetMode } from '../../../common/hooks/useSocket';
 import { AppMode, useAppMode } from '../../../common/stores/appModeStore';
 
 import RundownMenu from './RundownMenu';
@@ -15,6 +17,8 @@ export default function RundownHeader() {
   const setEditMode = () => setAppMode(AppMode.Edit);
   const { getLocalizedString } = useTranslation();
 
+  const { offsetMode } = useOffsetMode();
+
   return (
     <div className={style.header}>
       <ButtonGroup isAttached>
@@ -23,6 +27,22 @@ export default function RundownHeader() {
         </Button>
         <Button size='sm' variant={appMode === AppMode.Edit ? 'ontime-filled' : 'ontime-subtle'} onClick={setEditMode}>
         {getLocalizedString('editor.edit')}
+        </Button>
+      </ButtonGroup>
+      <ButtonGroup isAttached>
+        <Button
+          size='sm'
+          variant={offsetMode === OffsetMode.Absolute ? 'ontime-filled' : 'ontime-subtle'}
+          onClick={() => setOffsetMode(OffsetMode.Absolute)}
+        >
+          Absolute
+        </Button>
+        <Button
+          size='sm'
+          variant={offsetMode === OffsetMode.Relative ? 'ontime-filled' : 'ontime-subtle'}
+          onClick={() => setOffsetMode(OffsetMode.Relative)}
+        >
+          Relative
         </Button>
       </ButtonGroup>
       <RundownMenu />

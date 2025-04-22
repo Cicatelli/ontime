@@ -1,10 +1,6 @@
 {
   "name": "ontime",
-<<<<<<< HEAD
-  "version": "3.14.3",
-=======
-  "version": "3.11.0",
->>>>>>> parent of 1a808e15 (Merge remote-tracking branch 'upstream/master')
+  "version": "3.15.0",
   "description": "Time keeping for live events",
   "keywords": [
     "ontime",

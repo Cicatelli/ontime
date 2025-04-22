@@ -1,16 +1,15 @@
-import { CSSProperties, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Button } from '@chakra-ui/react';
+import { useCallback } from 'react';
 import { CustomFieldLabel, OntimeEvent } from 'ontime-types';
 
+import AppLink from '../../../common/components/link/app-link/AppLink';
 import { useEventAction } from '../../../common/hooks/useEventAction';
 import useCustomFields from '../../../common/hooks-query/useCustomFields';
-import { getAccessibleColour } from '../../../common/utils/styleUtils';
 import * as Editor from '../../editors/editor-utils/EditorUtils';
 
+import EventCustom from './composite/EventEditorCustom';
 import EventEditorTimes from './composite/EventEditorTimes';
 import EventEditorTitles from './composite/EventEditorTitles';
-import EventTextArea from './composite/EventTextArea';
+import EventEditorTriggers from './composite/EventEditorTriggers';
 import EventEditorEmpty from './EventEditorEmpty';
 
 import style from './EventEditor.module.scss';
@@ -27,7 +26,6 @@ export default function EventEditor(props: EventEditorProps) {
   const { event } = props;
   const { data: customFields } = useCustomFields();
   const { updateEvent } = useEventAction();
-  const [_searchParams, setSearchParams] = useSearchParams();
 
   const isEditor = window.location.pathname.includes('editor');
 
@@ -42,10 +40,6 @@ export default function EventEditor(props: EventEditorProps) {
     },
     [event?.id, updateEvent],
   );
-
-  const handleOpenCustomManager = () => {
-    setSearchParams({ settings: 'feature_settings__custom' });
-  };
 
   if (!event) {
     return <EventEditorEmpty />;
@@ -81,31 +75,16 @@ export default function EventEditor(props: EventEditorProps) {
       <div className={style.column}>
         <Editor.Title>
           Custom Fields
-          {isEditor && (
-            <Button variant='ontime-subtle' size='sm' onClick={handleOpenCustomManager}>
-              Manage
-            </Button>
-          )}
+          {isEditor && <AppLink search='settings=feature_settings__custom'>Manage Custom Fields</AppLink>}
         </Editor.Title>
-        {Object.keys(customFields).map((fieldKey) => {
-          const key = `${event.id}-${fieldKey}`;
-          const fieldName = `custom-${fieldKey}`;
-          const initialValue = event.custom[fieldKey] ?? '';
-          const { backgroundColor, color } = getAccessibleColour(customFields[fieldKey].colour);
-          const labelText = customFields[fieldKey].label;
-
-          return (
-            <EventTextArea
-              key={key}
-              field={fieldName}
-              label={labelText}
-              initialValue={initialValue}
-              submitHandler={handleSubmit}
-              className={style.decorated}
-              style={{ '--decorator-bg': backgroundColor, '--decorator-color': color } as CSSProperties}
-            />
-          );
-        })}
+        <EventCustom fields={customFields} handleSubmit={handleSubmit} event={event} />
+      </div>
+      <div className={style.column}>
+        <Editor.Title>
+          Automations
+          {isEditor && <AppLink search='settings=automation__automations'>Manage Automations</AppLink>}
+        </Editor.Title>
+        <EventEditorTriggers triggers={event.triggers} eventId={event.id} />
       </div>
     </div>
   );

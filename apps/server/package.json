@@ -2,11 +2,7 @@
   "name": "ontime-server",
   "type": "module",
   "main": "src/index.ts",
-<<<<<<< HEAD
-  "version": "3.14.3",
-=======
-  "version": "3.11.0",
->>>>>>> parent of 1a808e15 (Merge remote-tracking branch 'upstream/master')
+  "version": "3.15.0",
   "exports": "./src/index.js",
   "dependencies": {
     "@googleapis/sheets": "^5.0.5",
@@ -56,6 +52,7 @@
     "dev": "cross-env NODE_ENV=development tsx watch ./src/index.ts",
     "dev:inspect": "cross-env NODE_ENV=development tsx watch --inspect ./src/index.ts",
     "dev:test": "cross-env IS_TEST=true tsx ./src/index.ts",
+    "prebuild": "tsx ./scripts/bundleCss.ts",
     "build": "node esbuild.electron.js",
     "build:electron": "node esbuild.electron.js",
     "build:local": "node esbuild.dev.js",

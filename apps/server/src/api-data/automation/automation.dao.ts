@@ -2,12 +2,13 @@ import type { Automation, AutomationDTO, AutomationSettings, NormalisedAutomatio
 import { deleteAtIndex, generateId } from 'ontime-utils';
 
 import { getDataProvider } from '../../classes/data-provider/DataProvider.js';
+import { getTimedEvents } from '../../services/rundown-service/rundownUtils.js';
 
 /**
  * Gets a copy of the stored automation settings
  */
 export function getAutomationSettings(): AutomationSettings {
-  return structuredClone(getDataProvider().getAutomation());
+  return getDataProvider().getAutomation();
 }
 
 /**
@@ -131,14 +132,25 @@ export function deleteAutomation(id: string): void {
   if (!Object.hasOwn(automations, id)) {
     return;
   }
-  // prevent deleting a automation that is in use
-  const triggers = getAutomationTriggers();
-  for (let i = 0; i < triggers.length; i++) {
-    const trigger = triggers[i];
-    if (trigger.automationId === id) {
-      throw new Error(`Unable to delete automation used in trigger ${trigger.title}`);
-    }
+
+  // prevent deleting a automation that is in use in triggers
+  const triggers = getAutomationTriggers().filter((trigger) => trigger.automationId === id);
+  if (triggers.length) {
+    throw new Error(
+      `Unable to delete automation used in trigger ${triggers[0].title}${triggers.length > 1 ? ` and ${triggers.length - 1} more` : ''}`,
+    );
   }
+
+  // prevent deleting a automation that is in use in events
+  const events = getTimedEvents().filter(
+    (event) => event.triggers && event.triggers.some((trigger) => trigger.automationId === id),
+  );
+  if (events.length) {
+    throw new Error(
+      `Unable to delete automation used in event: ${events[0].id}${events.length > 1 ? ` and ${events.length - 1} more` : ''}`,
+    );
+  }
+
   delete automations[id];
   saveChanges({ automations });
 }
