@@ -21,7 +21,7 @@ type CsvHeaderKey = OntimeEntryCommonKeys | keyof CustomFields;
 
 export const parseField = (field: CsvHeaderKey, data: unknown): string => {
   if (field === 'timeStart' || field === 'timeEnd' || field === 'duration') {
-    return millisToString(data as MaybeNumber);
+    return millisToString(data as MaybeNumber, { fallback: '' });
   }
 
   if (field === 'isPublic' || field === 'skip') {
@@ -60,6 +60,7 @@ export const makeTable = (headerData: ProjectData, rundown: OntimeRundown, custo
     'isPublic',
     'skip',
     ...customFieldKeys,
+    'type',
   ];
 
   const fieldTitles = [
@@ -74,6 +75,7 @@ export const makeTable = (headerData: ProjectData, rundown: OntimeRundown, custo
     'Is Public? (x)',
     'Skip?',
     ...customFieldLabels,
+    'Type',
   ];
 
   // add header row to data

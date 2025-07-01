@@ -837,12 +837,14 @@ describe('getCustomFieldData()', () => {
         lighting: 'lx',
         sound: 'sound',
         video: 'av',
+        ontime_label: 'excel label',
       },
     } as ImportMap;
 
     const customFields: CustomFields = {
       lighting: { label: 'lx', type: 'string', colour: 'red' },
       sound: { label: 'sound', type: 'string', colour: 'green' },
+      ontime_key: { label: 'ontime_label', type: 'string', colour: 'blue' },
     };
 
     const result = getCustomFieldData(importMap, customFields);
@@ -862,6 +864,11 @@ describe('getCustomFieldData()', () => {
         colour: '',
         label: 'video',
       },
+      ontime_key: {
+        type: 'string',
+        colour: 'blue',
+        label: 'ontime_label',
+      },
     });
 
     // it is an inverted record of <importKey, ontimeKey>
@@ -869,6 +876,7 @@ describe('getCustomFieldData()', () => {
       lx: 'lighting',
       sound: 'sound',
       av: 'video',
+      'excel label': 'ontime_key',
     });
   });
 });
@@ -1020,8 +1028,8 @@ describe('parseExcel()', () => {
       user2: { type: 'string', colour: 'blue', label: 'user2' },
     };
 
-    const parsedData = parseExcel(testdata, existingCustomFields, importMap);
-    expect(parsedData.customFields).toStrictEqual({
+    const { customFields, rundown } = parseExcel(testdata, existingCustomFields, importMap);
+    expect(customFields).toStrictEqual({
       user0: {
         type: 'string',
         colour: 'red',
@@ -1073,9 +1081,9 @@ describe('parseExcel()', () => {
         label: 'user9',
       },
     });
-    expect(parsedData.rundown.length).toBe(2);
-    expect(parsedData.rundown[0]).toMatchObject(expectedParsedRundown[0]);
-    expect(parsedData.rundown[1]).toMatchObject(expectedParsedRundown[1]);
+    expect(rundown.length).toBe(2);
+    expect(rundown[0]).toMatchObject(expectedParsedRundown[0]);
+    expect(rundown[1]).toMatchObject(expectedParsedRundown[1]);
   });
 
   it('parses a file without custom fields', () => {

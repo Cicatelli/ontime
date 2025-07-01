@@ -7,7 +7,7 @@ import type { IAdapter } from './IAdapter.js';
 import { logger } from '../classes/Logger.js';
 import { integrationPayloadFromPath } from './utils/parse.js';
 import { dispatchFromAdapter } from '../api-integration/integration.controller.js';
-import { isOntimeCloud } from '../externals.js';
+import { isOntimeCloud } from '../setup/environment.js';
 
 class OscServer implements IAdapter {
   private udpSocket: dgram.Socket | null = null;

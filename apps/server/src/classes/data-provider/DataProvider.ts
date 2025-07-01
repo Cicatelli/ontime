@@ -14,7 +14,7 @@ import { JSONFilePreset } from 'lowdb/node';
 
 import { isPath } from '../../utils/fileManagement.js';
 import { shouldCrashDev } from '../../utils/development.js';
-import { isTest } from '../../externals.js';
+import { isTest } from '../../setup/environment.js';
 
 import { safeMerge } from './DataProvider.utils.js';
 
@@ -63,7 +63,7 @@ function getData(): Readonly<DatabaseModel> {
 }
 
 async function setProjectData(newData: Partial<ProjectData>): ReadonlyPromise<ProjectData> {
-  db.data.project = { ...db.data.project, ...newData };
+  db.data.project = { ...structuredClone(db.data.project), ...structuredClone(newData) }; // Performing deep copy as we're updating / merging data
   await persist();
   return db.data.project;
 }
