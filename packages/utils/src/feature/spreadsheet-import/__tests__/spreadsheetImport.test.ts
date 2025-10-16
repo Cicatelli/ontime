@@ -2,17 +2,17 @@ import type { ImportMap } from '../spreadsheetImport';
 import { isImportMap } from '../spreadsheetImport';
 
 describe('isImportMap()', () => {
-  it('validates a v3 default import map', () => {
-    const v3ImportMap = {
+  it('validates a v4 default import map', () => {
+    const importMap: ImportMap = {
       worksheet: 'event schedule',
       timeStart: 'time start',
       linkStart: 'link start',
       timeEnd: 'time end',
       duration: 'duration',
+      flag: 'flag',
       cue: 'cue',
       title: 'title',
       countToEnd: 'count to end',
-      isPublic: 'public',
       skip: 'skip',
       note: 'notes',
       colour: 'colour',
@@ -21,13 +21,14 @@ describe('isImportMap()', () => {
       timeWarning: 'warning time',
       timeDanger: 'danger time',
       custom: {},
-    } as ImportMap;
+      id: 'id',
+    };
 
-    expect(isImportMap(v3ImportMap)).toBe(true);
+    expect(isImportMap(importMap)).toBe(true);
   });
 
-  it('handles custom properties', () => {
-    const v3ImportMap = {
+  it('rejects map missing keys', () => {
+    const importMap = {
       worksheet: 'event schedule',
       timeStart: 'time start',
       linkStart: 'link start',
@@ -36,7 +37,30 @@ describe('isImportMap()', () => {
       cue: 'cue',
       title: 'title',
       countToEnd: 'count to end',
-      isPublic: 'public',
+      skip: 'skip',
+      note: 'notes',
+      colour: 'colour',
+      endAction: 'end action',
+      timerType: 'timer type',
+      timeWarning: 'warning time',
+      timeDanger: 'danger time',
+      custom: {},
+    };
+
+    expect(isImportMap(importMap)).toBe(false);
+  });
+
+  it('handles custom properties', () => {
+    const importMap: ImportMap = {
+      worksheet: 'event schedule',
+      timeStart: 'time start',
+      linkStart: 'link start',
+      timeEnd: 'time end',
+      duration: 'duration',
+      flag: 'flag',
+      cue: 'cue',
+      title: 'title',
+      countToEnd: 'count to end',
       skip: 'skip',
       note: 'notes',
       colour: 'colour',
@@ -48,8 +72,9 @@ describe('isImportMap()', () => {
         userDefined: 'userDefined',
         anotherOne: 'anotherOne',
       },
-    } as ImportMap;
+      id: 'id',
+    };
 
-    expect(isImportMap(v3ImportMap)).toBe(true);
+    expect(isImportMap(importMap)).toBe(true);
   });
 });

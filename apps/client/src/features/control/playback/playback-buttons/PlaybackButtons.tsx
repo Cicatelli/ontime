@@ -1,14 +1,9 @@
-<<<<<<< HEAD
 import { useMemo } from 'react';
-import { IoPause, IoPlay, IoPlaySkipBack, IoPlaySkipForward, IoReload, IoStop, IoTime } from 'react-icons/io5';
-=======
->>>>>>> parent of 1a808e15 (Merge remote-tracking branch 'upstream/master')
-import { Tooltip } from '@chakra-ui/react';
+import { IoPause, IoPlay, IoPlaySkipBack, IoPlaySkipForward, IoReload, IoStop } from 'react-icons/io5';
 import { Playback, TimerPhase } from 'ontime-types';
 import { validatePlayback } from 'ontime-utils';
 
 import { setPlayback } from '../../../../common/hooks/useSocket';
-import { tooltipDelayMid } from '../../../../ontimeConfig';
 import TapButton from '../tap-button/TapButton';
 
 import style from './PlaybackButtons.module.scss';
@@ -32,7 +27,7 @@ export default function PlaybackButtons(props: PlaybackButtonsProps) {
   const isLast = selectedEventIndex === numEvents - 1;
   const noEvents = numEvents === 0;
 
-  const disableGo = isRolling || noEvents || (isLast && !isArmed);
+  const disableGo = isRolling || noEvents;
   const disableNext = isRolling || noEvents || isLast;
   const disablePrev = isRolling || noEvents || isFirst;
 
@@ -43,14 +38,16 @@ export default function PlaybackButtons(props: PlaybackButtonsProps) {
   const disableStop = !playbackCan.stop;
   const disableReload = !playbackCan.reload;
 
-  const goModeText = selectedEventIndex === null || isArmed ? 'Start' : 'Next';
-  const goModeAction = () => {
+  const [goModeAction, goModeText] = useMemo(() => {
     if (isArmed) {
-      setPlayback.start();
-    } else {
-      setPlayback.startNext();
+      return [setPlayback.start, 'Start'];
+    } else if (isLast) {
+      return [setPlayback.stop, 'Finish'];
+    } else if (selectedEventIndex === null) {
+      return [setPlayback.startNext, 'Start'];
     }
-  };
+    return [setPlayback.startNext, 'Next'];
+  }, [isArmed, isLast, selectedEventIndex]);
 
   return (
     <div className={style.buttonContainer}>
@@ -67,31 +64,23 @@ export default function PlaybackButtons(props: PlaybackButtonsProps) {
         </TapButton>
       </div>
       <div className={style.transportContainer}>
-        <Tooltip label='Previous event' openDelay={tooltipDelayMid}>
-          <TapButton onClick={setPlayback.previous} disabled={disablePrev}>
-            <IoPlaySkipBack />
-          </TapButton>
-        </Tooltip>
-        <Tooltip label='Next event' openDelay={tooltipDelayMid}>
-          <TapButton onClick={setPlayback.next} disabled={disableNext}>
-            <IoPlaySkipForward />
-          </TapButton>
-        </Tooltip>
+        <TapButton onClick={setPlayback.previous} disabled={disablePrev}>
+          <IoPlaySkipBack />
+        </TapButton>
+        <TapButton onClick={setPlayback.next} disabled={disableNext}>
+          <IoPlaySkipForward />
+        </TapButton>
       </div>
       <div className={style.extra}>
         <TapButton onClick={setPlayback.roll} disabled={disableRoll} theme={Playback.Roll} active={isRolling}>
-          <IoTime />
+          Roll
         </TapButton>
-        <Tooltip label='Reload event' openDelay={tooltipDelayMid}>
-          <TapButton onClick={setPlayback.reload} disabled={disableReload}>
-            <IoReload className={style.invertX} />
-          </TapButton>
-        </Tooltip>
-        <Tooltip label='Unload Event' openDelay={tooltipDelayMid}>
-          <TapButton onClick={setPlayback.stop} disabled={disableStop} theme={Playback.Stop}>
-            <IoStop />
-          </TapButton>
-        </Tooltip>
+        <TapButton onClick={setPlayback.reload} disabled={disableReload}>
+          <IoReload className={style.invertX} />
+        </TapButton>
+        <TapButton onClick={setPlayback.stop} disabled={disableStop} theme={Playback.Stop}>
+          <IoStop />
+        </TapButton>
       </div>
     </div>
   );

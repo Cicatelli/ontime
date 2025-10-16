@@ -1,8 +1,6 @@
 import axios, { AxiosResponse } from 'axios';
 import { DatabaseModel, MessageResponse, ProjectData, ProjectFileListResponse, QuickStartData } from 'ontime-types';
 
-import { makeCSV, makeTable } from '../../views/cuesheet/cuesheet.utils';
-
 import { apiEntryUrl } from './constants';
 import { createBlob, downloadBlob } from './utils';
 
@@ -27,25 +25,6 @@ export async function downloadProject(fileName: string) {
 
     const blob = createBlob(fileContent, 'application/json;charset=utf-8;');
     downloadBlob(blob, `${name}.json`);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-/**
- * Request download of the current rundown as a CSV file
- * @param fileName
- */
-export async function downloadCSV(fileName: string = 'rundown') {
-  try {
-    const { data, name } = await fileDownload(fileName);
-    const { project, rundown, customFields } = data;
-
-    const sheetData = makeTable(project, rundown, customFields);
-    const fileContent = makeCSV(sheetData);
-
-    const blob = createBlob(fileContent, 'text/csv;charset=utf-8;');
-    downloadBlob(blob, `${name}.csv`);
   } catch (error) {
     console.error(error);
   }

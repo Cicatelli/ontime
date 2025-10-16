@@ -1,3 +1,4 @@
+import type { SecondarySource } from '../runtime/MessageControl.type.js';
 import type { TimerLifeCycle } from './TimerLifecycle.type.js';
 
 export type AutomationSettings = {
@@ -38,7 +39,7 @@ export type AutomationFilter = {
   value: string; // we use string but would coerce to the field value
 };
 
-export type AutomationOutput = OSCOutput | HTTPOutput;
+export type AutomationOutput = OSCOutput | HTTPOutput | OntimeAction;
 
 export type OSCOutput = {
   type: 'osc';
@@ -52,3 +53,53 @@ export type HTTPOutput = {
   type: 'http';
   url: string;
 };
+
+const ontimeAuxTriggerAction = [
+  'aux1-start',
+  'aux1-stop',
+  'aux1-pause',
+  'aux2-start',
+  'aux2-stop',
+  'aux2-pause',
+  'aux3-start',
+  'aux3-stop',
+  'aux3-pause',
+] as const;
+
+const ontimeAuxSetAction = ['aux1-set', 'aux2-set', 'aux3-set'] as const;
+
+type OntimeAuxTriggerAction = (typeof ontimeAuxTriggerAction)[number];
+type OntimeAuxSetAction = (typeof ontimeAuxSetAction)[number];
+type OntimeMessageSet = 'message-set';
+type OntimeMessageSecondary = 'message-secondary';
+
+export type OntimeActionKey = OntimeAuxTriggerAction | OntimeAuxSetAction | OntimeMessageSet | OntimeMessageSecondary;
+
+export const ontimeActionKeyValues = [
+  ...ontimeAuxTriggerAction,
+  ...ontimeAuxSetAction,
+  'message-set',
+  'message-secondary',
+];
+
+export type OntimeAction =
+  | {
+      type: 'ontime';
+      action: OntimeAuxTriggerAction;
+    }
+  | {
+      type: 'ontime';
+      action: OntimeAuxSetAction;
+      time: string;
+    }
+  | {
+      type: 'ontime';
+      action: OntimeMessageSet;
+      text?: string;
+      visible?: boolean;
+    }
+  | {
+      type: 'ontime';
+      action: OntimeMessageSecondary;
+      secondarySource: SecondarySource;
+    };

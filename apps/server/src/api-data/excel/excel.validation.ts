@@ -1,28 +1,22 @@
 import { isImportMap } from 'ontime-utils';
 
-import { body, validationResult } from 'express-validator';
-import type { NextFunction, Request, Response } from 'express';
+import { body, param } from 'express-validator';
 
-export const validateFileExists = [
-  (req: Request, res: Response, next: NextFunction) => {
-    if (!req.file) {
-      return res.status(422).json({ errors: 'File not found' });
-    }
-    next();
-  },
-];
+import {
+  requestValidationFunction,
+  requestValidationFunctionWithFile,
+} from '../validation-utils/validationFunction.js';
+
+export const validateFileExists = [requestValidationFunctionWithFile];
 
 export const validateImportMapOptions = [
   body('options')
-    .exists()
     .isObject()
     .custom((content) => {
       return isImportMap(content);
     }),
 
-  (req: Request, res: Response, next: NextFunction) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(422).json({ errors: errors.array() });
-    next();
-  },
+  requestValidationFunction,
 ];
+
+export const validateRundownExport = [param('rundownId').isString().trim().notEmpty(), requestValidationFunction];

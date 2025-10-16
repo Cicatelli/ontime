@@ -1,79 +1,73 @@
 import { IoEye, IoEyeOffOutline } from 'react-icons/io5';
 
-import TooltipActionBtn from '../../../common/components/buttons/TooltipActionBtn';
-import { setMessage, useExternalMessageInput, useTimerMessageInput } from '../../../common/hooks/useSocket';
-import { tooltipDelayMid } from '../../../ontimeConfig';
+import IconButton from '../../../common/components/buttons/IconButton';
+import {
+  setMessage,
+  useExternalMessageInput as useSecondaryMessageInput,
+  useTimerMessageInput,
+} from '../../../common/hooks/useSocket';
 
 import InputRow from './InputRow';
 import TimerControlsPreview from './TimerViewControl';
-
-import { useTranslation } from '../../../translation/TranslationProvider';
 
 export default function MessageControl() {
   return (
     <>
       <TimerControlsPreview />
       <TimerMessageInput />
-      <ExternalInput />
+      <SecondaryInput />
     </>
   );
 }
 
 function TimerMessageInput() {
   const { text, visible } = useTimerMessageInput();
-  const { getLocalizedString } = useTranslation();
 
   return (
     <InputRow
-      label={getLocalizedString('timer.message')}
-      placeholder={getLocalizedString('timer.message.plac')}
+      label='Timer Message'
+      placeholder='Message shown fullscreen in stage timer'
       text={text}
       visible={visible}
       changeHandler={(newValue) => setMessage.timerText(newValue)}
     >
-      <TooltipActionBtn
-        clickHandler={() => setMessage.timerVisible(!visible)}
-        tooltip={visible ? 'Make invisible' : 'Make visible'}
+      <IconButton
         aria-label='Toggle timer message visibility'
-        openDelay={tooltipDelayMid}
-        icon={visible ? <IoEye size='18px' /> : <IoEyeOffOutline size='18px' />}
-        variant={visible ? 'ontime-filled' : 'ontime-subtle'}
-        size='sm'
-      />
+        onClick={() => setMessage.timerVisible(!visible)}
+        variant={visible ? 'primary' : 'subtle'}
+      >
+        {visible ? <IoEye /> : <IoEyeOffOutline />}
+      </IconButton>
     </InputRow>
   );
 }
 
-function ExternalInput() {
-  const { text, visible } = useExternalMessageInput();
+function SecondaryInput() {
+  const { text, visible } = useSecondaryMessageInput();
 
-  const toggleExternal = () => {
+  const toggleSecondary = () => {
     if (visible) {
-      setMessage.timerSecondary(null);
+      setMessage.timerSecondarySource(null);
     } else {
-      setMessage.timerSecondary('external');
+      setMessage.timerSecondarySource('secondary');
     }
   };
 
-  const { getLocalizedString } = useTranslation();
-
   return (
     <InputRow
-      label={getLocalizedString('timer.external')}
-      placeholder={getLocalizedString('timer.external.plac')}
+      label='Secondary Message'
+      placeholder='Message shown as secondary text in stage timer'
       text={text}
       visible={visible}
-      changeHandler={(newValue) => setMessage.externalText(newValue)}
+      changeHandler={(newValue) => setMessage.secondaryMessage(newValue)}
     >
-      <TooltipActionBtn
-        clickHandler={toggleExternal}
-        tooltip={visible ? 'Make invisible' : 'Make visible'}
-        aria-label='Toggle external message visibility'
-        openDelay={tooltipDelayMid}
-        icon={visible ? <IoEye size='18px' /> : <IoEyeOffOutline size='18px' />}
-        variant={visible ? 'ontime-filled' : 'ontime-subtle'}
-        size='sm'
-      />
+      <IconButton
+        aria-label='Toggle secondary message visibility'
+        onClick={toggleSecondary}
+        variant={visible ? 'primary' : 'subtle'}
+      >
+        {visible ? <IoEye /> : <IoEyeOffOutline />}
+      </IconButton>
     </InputRow>
   );
 }

@@ -1,18 +1,19 @@
 import { CSSProperties } from 'react';
 
 import EmptyImage from '../../../assets/images/empty.svg?react';
+import { cx } from '../../utils/styleUtils';
 
 import style from './Empty.module.scss';
 
 interface EmptyProps {
   text?: string;
-  style?: CSSProperties;
+  injectedStyles?: CSSProperties;
+  className?: string;
 }
 
-export default function Empty(props: EmptyProps) {
-  const { text, ...rest } = props;
+export default function Empty({ text, className, injectedStyles }: EmptyProps) {
   return (
-    <div className={style.emptyContainer} {...rest}>
+    <div className={cx([style.emptyContainer, className])} style={injectedStyles}>
       <EmptyImage className={style.empty} />
       {text && <span className={style.text}>{text}</span>}
     </div>

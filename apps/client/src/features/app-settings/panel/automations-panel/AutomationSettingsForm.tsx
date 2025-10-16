@@ -1,11 +1,15 @@
-import { Controller, useForm } from 'react-hook-form';
-import { Alert, AlertDescription, AlertIcon, Button, Input, Switch } from '@chakra-ui/react';
+import { useForm } from 'react-hook-form';
 
 import { editAutomationSettings } from '../../../../common/api/automation';
 import { maybeAxiosError } from '../../../../common/api/utils';
-import ExternalLink from '../../../../common/components/external-link/ExternalLink';
+import Button from '../../../../common/components/buttons/Button';
+import Info from '../../../../common/components/info/Info';
+import Input from '../../../../common/components/input/input/Input';
+import ExternalLink from '../../../../common/components/link/external-link/ExternalLink';
+import Switch from '../../../../common/components/switch/Switch';
 import { preventEscape } from '../../../../common/utils/keyEvent';
 import { isOnlyNumbers } from '../../../../common/utils/regex';
+import { isOntimeCloud } from '../../../../externals';
 import * as Panel from '../../panel-utils/PanelUtils';
 
 const oscApiDocsUrl = 'https://docs.getontime.no/api/protocols/osc/';
@@ -16,28 +20,31 @@ interface AutomationSettingsProps {
   oscPortIn: number;
 }
 
-export default function AutomationSettingsForm(props: AutomationSettingsProps) {
-  const { enabledAutomations, enabledOscIn, oscPortIn } = props;
-
+export default function AutomationSettingsForm({
+  enabledAutomations,
+  enabledOscIn,
+  oscPortIn,
+}: AutomationSettingsProps) {
   const {
-    control,
     handleSubmit,
     reset,
     register,
     setError,
+    watch,
+    setValue,
     formState: { errors, isSubmitting, isDirty, isValid },
   } = useForm<AutomationSettingsProps>({
     mode: 'onChange',
     defaultValues: { enabledAutomations, enabledOscIn, oscPortIn },
-    values: { enabledAutomations, enabledOscIn, oscPortIn },
     resetOptions: {
-      keepDirtyValues: true,
+      keepDirtyValues: false,
     },
   });
 
   const onSubmit = async (formData: AutomationSettingsProps) => {
     try {
       await editAutomationSettings(formData);
+      reset(formData);
     } catch (error) {
       const message = maybeAxiosError(error);
       setError('root', { message });
@@ -55,16 +62,15 @@ export default function AutomationSettingsForm(props: AutomationSettingsProps) {
       <Panel.SubHeader>
         Automation settings
         <Panel.InlineElements>
-          <Button variant='ontime-ghosted' size='sm' onClick={onReset} isDisabled={!canSubmit}>
+          <Button variant='ghosted' onClick={onReset} disabled={!canSubmit}>
             Revert to saved
           </Button>
           <Button
-            variant='ontime-filled'
-            size='sm'
+            variant='primary'
             type='submit'
             form='automation-settings-form'
-            isDisabled={!canSubmit}
-            isLoading={isSubmitting}
+            disabled={!canSubmit}
+            loading={isSubmitting}
           >
             Save
           </Button>
@@ -75,14 +81,13 @@ export default function AutomationSettingsForm(props: AutomationSettingsProps) {
       <Panel.Divider />
 
       <Panel.Section>
-        <Alert status='info' variant='ontime-on-dark-info'>
-          <AlertIcon />
-          <AlertDescription>
-            Control Ontime and share its data with external systems in your workflow. <br />
-            - Automations allow Ontime to send its data on lifecycle triggers. <br />- OSC Input tells Ontime to listen
-            to messages on the specific port. <ExternalLink href={oscApiDocsUrl}>See the docs</ExternalLink>
-          </AlertDescription>
-        </Alert>
+        <Info>
+          <p>Control Ontime and share its data with external systems in your workflow.</p>
+          <p>- Automations allow Ontime to send its data on lifecycle triggers.</p>
+          <p>- OSC Input tells Ontime to listen to messages on the specific port.</p>
+          <br />
+          <ExternalLink href={oscApiDocsUrl}>See the docs</ExternalLink>
+        </Info>
       </Panel.Section>
 
       <Panel.Section
@@ -101,30 +106,32 @@ export default function AutomationSettingsForm(props: AutomationSettingsProps) {
               description='Allow Ontime to send messages on lifecycle triggers'
               error={errors.enabledAutomations?.message}
             />
-            <Controller
-              control={control}
-              name='enabledAutomations'
-              render={({ field: { onChange, value, ref } }) => (
-                <Switch variant='ontime' size='lg' isChecked={value} onChange={onChange} ref={ref} />
-              )}
+            <Switch
+              size='large'
+              checked={watch('enabledAutomations')}
+              onCheckedChange={(value: boolean) =>
+                setValue('enabledAutomations', value, { shouldDirty: true, shouldValidate: true })
+              }
             />
           </Panel.ListItem>
         </Panel.ListGroup>
 
         <Panel.Title>OSC Input</Panel.Title>
+
         <Panel.ListGroup>
+          {isOntimeCloud && <Info>For security reasons OSC integrations are not available in the cloud service.</Info>}
           <Panel.ListItem>
             <Panel.Field
               title='OSC input'
               description='Allow control of Ontime through OSC'
               error={errors.enabledOscIn?.message}
             />
-            <Controller
-              control={control}
-              name='enabledOscIn'
-              render={({ field: { onChange, value, ref } }) => (
-                <Switch variant='ontime' size='lg' isChecked={value} onChange={onChange} ref={ref} />
-              )}
+            <Switch
+              size='large'
+              checked={watch('enabledOscIn')}
+              onCheckedChange={(value: boolean) =>
+                setValue('enabledOscIn', value, { shouldDirty: true, shouldValidate: true })
+              }
             />
           </Panel.ListItem>
           <Panel.ListItem>
@@ -136,13 +143,10 @@ export default function AutomationSettingsForm(props: AutomationSettingsProps) {
             <Input
               id='oscPortIn'
               placeholder='8888'
-              width='5rem'
               maxLength={5}
-              size='sm'
-              textAlign='right'
-              variant='ontime-filled'
+              style={{ textAlign: 'right', width: '5rem' }}
               type='number'
-              autoComplete='off'
+              fluid
               {...register('oscPortIn', {
                 required: { value: true, message: 'Required field' },
                 max: { value: 65535, message: 'Port must be within range 1024 - 65535' },

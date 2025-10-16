@@ -1,22 +1,19 @@
-import { EndAction, OntimeEvent, TimerType, isKeyOfType, isOntimeEvent } from 'ontime-types';
-import { MILLIS_PER_SECOND, maxDuration } from 'ontime-utils';
+import { EndAction, TimeStrategy, TimerType, isKeyOfType } from 'ontime-types';
+import { maxDuration } from 'ontime-utils';
 
-import { editEvent } from '../services/rundown-service/RundownService.js';
-import { getEventWithId } from '../services/rundown-service/rundownUtils.js';
 import { coerceBoolean, coerceColour, coerceEnum, coerceNumber, coerceString } from '../utils/coerceType.js';
 import { getDataProvider } from '../classes/data-provider/DataProvider.js';
 
 /**
  *
- * @param {number} value time amount in seconds
+ * @param {number} value time amount in milliseconds
  * @returns {number} time in milliseconds clamped to 0 and max duration
  */
 function clampDuration(value: number): number {
-  const valueInMillis = value * MILLIS_PER_SECOND;
-  if (valueInMillis > maxDuration || valueInMillis < 0) {
+  if (value > maxDuration || value < 0) {
     throw new Error('Times should be from 0 to 23:59:59');
   }
-  return valueInMillis;
+  return value;
 }
 
 const propertyConversion = {
@@ -24,7 +21,6 @@ const propertyConversion = {
   note: coerceString,
   cue: coerceString,
 
-  isPublic: coerceBoolean,
   skip: coerceBoolean,
 
   colour: coerceColour,
@@ -36,6 +32,9 @@ const propertyConversion = {
 
   endAction: (value: unknown) => coerceEnum<EndAction>(value, EndAction),
   timerType: (value: unknown) => coerceEnum<TimerType>(value, TimerType),
+
+  linkStart: coerceBoolean,
+  timeStrategy: (value: unknown) => coerceEnum<TimeStrategy>(value, TimeStrategy),
 
   duration: (value: unknown) => clampDuration(coerceNumber(value)),
   timeStart: (value: unknown) => clampDuration(coerceNumber(value)),
@@ -57,20 +56,4 @@ export function parseProperty(property: string, value: unknown) {
   }
   const parserFn = propertyConversion[property];
   return { [property]: parserFn(value) };
-}
-
-/**
- * Updates a property of the event with the given id
- * @param {Partial<OntimeEvent>} patchEvent
- */
-export function updateEvent(patchEvent: Partial<OntimeEvent> & { id: string }) {
-  const event = getEventWithId(patchEvent?.id ?? '');
-  if (!event) {
-    throw new Error(`Event with ID ${patchEvent?.id} not found`);
-  }
-
-  if (!isOntimeEvent(event)) {
-    throw new Error('Can only update events');
-  }
-  editEvent(patchEvent);
 }

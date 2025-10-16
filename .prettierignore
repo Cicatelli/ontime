@@ -5,6 +5,10 @@ node_modules
 
 playwright-report
 
+
+pnpm-lock.yaml
 **/*.toml
-**/*.yml
 **/*.json
+!tsconfig.common.json
+!turbo.json
+!package.json

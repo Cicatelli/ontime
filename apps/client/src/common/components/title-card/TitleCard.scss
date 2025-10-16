@@ -1,4 +1,4 @@
-@use '../../../theme/viewerDefs' as *;
+@use '@/theme/viewerDefs' as *;
 
 $title-primary-size: clamp(1.5rem, 3vw, 3rem);
 $title-secondary-size: clamp(1rem, 2vw, 2.25rem);
