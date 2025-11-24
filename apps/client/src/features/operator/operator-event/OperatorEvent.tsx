@@ -1,11 +1,12 @@
-import { memo, RefObject, SyntheticEvent } from 'react';
-import { useLongPress } from '@mantine/hooks';
-import { MILLIS_PER_MINUTE, MILLIS_PER_SECOND, millisToString } from 'ontime-utils';
+import { CSSProperties, memo, RefObject, SyntheticEvent } from 'react';
+import { MILLIS_PER_MINUTE, MILLIS_PER_SECOND } from 'ontime-utils';
 
 import DelayIndicator from '../../../common/components/delay-indicator/DelayIndicator';
+import { useLongPress } from '../../../common/hooks/useLongPress';
 import { cx, getAccessibleColour } from '../../../common/utils/styleUtils';
-import { formatDuration, useTimeUntilExpectedStart } from '../../../common/utils/time';
+import { formatDuration, formatTime, useTimeUntilExpectedStart } from '../../../common/utils/time';
 import RunningTime from '../../viewers/common/running-time/RunningTime';
+import SuperscriptPeriod from '../../viewers/common/superscript-time/SuperscriptPeriod';
 import type { EditEvent, Subscribed } from '../operator.types';
 
 import style from './OperatorEvent.module.scss';
@@ -54,8 +55,10 @@ function OperatorEvent({
    * gather behaviour for long press and context menu
    */
   const handleLongPress = (event?: SyntheticEvent) => {
-    // we dont have an event out of useLongPress
-    event?.preventDefault();
+    // prevent default if the event is cancelable to avoid browser intervention warnings
+    if (event && event.cancelable) {
+      event.preventDefault();
+    }
     if (subscribed) {
       onLongPress({ id, cue, subscriptions: subscribed });
     }
@@ -64,22 +67,33 @@ function OperatorEvent({
   const mouseHandlers = useLongPress(handleLongPress);
   const cueColours = colour && getAccessibleColour(colour);
 
-  const operatorClasses = cx([
-    style.event,
-    isSelected && style.running,
-    isPast && style.past,
-  ]);
+  const operatorClasses = cx([style.event, isSelected && style.running, isPast && style.past]);
+
+  const hasFields = subscribed.some((field) => field.value);
+  const columnCount = subscribed.length ? Math.min(subscribed.length, 4) : 0;
+  const fieldGridStyle =
+    columnCount > 0
+      ? ({
+          gridTemplateColumns: `repeat(${columnCount}, minmax(12rem, 1fr))`,
+        } satisfies CSSProperties)
+      : undefined;
 
   return (
-    <div className={operatorClasses} data-testid={cue} ref={selectedRef} onContextMenu={handleLongPress} {...mouseHandlers}>
+    <div
+      className={operatorClasses}
+      data-testid={cue}
+      ref={selectedRef}
+      onContextMenu={handleLongPress}
+      {...mouseHandlers}
+    >
       <div className={style.binder} style={{ ...cueColours }}>
         <span className={style.cue}>{cue}</span>
       </div>
 
       <span className={style.mainField}>
-        {showStart && <span className={style.plannedStart}>{millisToString(timeStart)}</span>}
+        {showStart && <SuperscriptPeriod className={style.plannedStart} time={formatTime(timeStart)} />}
         {main}
-        </span>
+      </span>
       <span className={style.secondaryField}>{secondary}</span>
       <OperatorEventSchedule
         timeStart={timeStart}
@@ -95,22 +109,25 @@ function OperatorEvent({
         <RunningTime className={cx([isSelected && style.muted])} value={duration} hideLeadingZero />
       </span>
 
-      <div className={style.fields}>
-        {subscribed
-          .filter((field) => field.value)
-          .map((field) => {
-            const fieldClasses = cx([style.field, !field.colour ? style.noColour : null]);
-            return (
-              <div key={field.id}>
-                <span className={fieldClasses} style={{ backgroundColor: field.colour }}>
-                  {field.label}
-                </span>
-                <span className={style.value} style={{ color: field.colour }}>
-                  {field.value}
-                </span>
-              </div>
-            );
-          })}
+      <div className={cx([style.fields, hasFields && style.fieldsWithContent])} style={fieldGridStyle}>
+        {subscribed.map((field) => {
+          if (!field.value) {
+            return <div key={field.id} />;
+          }
+          return (
+            <div key={field.id}>
+              <span
+                className={cx([style.field, !field.colour && style.noColour])}
+                style={{ backgroundColor: field.colour }}
+              >
+                {field.label}
+              </span>
+              <span className={style.value} style={{ color: field.colour }}>
+                {field.value}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -167,5 +184,9 @@ function TimeUntil({ timeStart, delay, dayOffset, totalGap, isLinkedToLoaded }: 
   const isDue = timeUntil < MILLIS_PER_SECOND;
   const timeUntilString = isDue ? 'DUE' : `${formatDuration(Math.abs(timeUntil), timeUntil > 2 * MILLIS_PER_MINUTE)}`;
 
-  return <span className={style.timeUntil} data-testid='time-until'>{timeUntilString}</span>;
+  return (
+    <span className={style.timeUntil} data-testid='time-until'>
+      {timeUntilString}
+    </span>
+  );
 }

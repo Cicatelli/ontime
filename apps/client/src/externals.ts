@@ -8,6 +8,7 @@ export const githubUrl = 'https://www.github.com/cpvalente/ontime';
 export const apiRepoLatest = 'https://api.github.com/repos/cpvalente/ontime/releases/latest';
 export const websiteUrl = 'https://www.getontime.no';
 export const discordUrl = 'https://discord.com/invite/eje3CSUEXm';
+export const subredditUrl = 'https://www.reddit.com/r/ontimeapp/';
 
 export const documentationUrl = 'https://docs.getontime.no';
 export const customFieldsDocsUrl = 'https://docs.getontime.no/features/custom-fields/';
@@ -22,7 +23,10 @@ export const isProduction = import.meta.env.PROD;
 export const isDev = import.meta.env.DEV;
 export const currentHostName = window.location.hostname;
 export const isLocalhost = currentHostName === 'localhost' || currentHostName === '127.0.0.1';
-export const isOntimeCloud = currentHostName.includes('cloud.getontime.no');
+export const isOntimeCloud = document.querySelector('base')?.hasAttribute('data-is-cloud')
+
+export const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+export const supportsFullscreen = document.fullscreenEnabled;
 
 // resolve entrypoint URLs
 

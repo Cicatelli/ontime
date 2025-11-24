@@ -112,11 +112,12 @@ export const formatTime = (
 export function formatDuration(duration: number, hideSeconds = true): string {
   // durations should never be negative, we handle it here to flag if there is an issue in future
   if (duration <= 0) {
-    return '0h 0m';
+    return '0m';
   }
 
   const hours = Math.floor(duration / MILLIS_PER_HOUR);
   const minutes = Math.floor((duration % MILLIS_PER_HOUR) / MILLIS_PER_MINUTE);
+
   let result = '';
   if (hours > 0) {
     result += `${hours}h`;
@@ -126,11 +127,16 @@ export function formatDuration(duration: number, hideSeconds = true): string {
   }
 
   if (!hideSeconds) {
-    const seconds = Math.ceil((duration % MILLIS_PER_MINUTE) / MILLIS_PER_SECOND);
+    const remainingMs = duration % MILLIS_PER_MINUTE;
+    const exactSeconds = remainingMs / MILLIS_PER_SECOND;
+    // cap at 59 to avoid showing 60s
+    const seconds = Math.min(59, Math.ceil(exactSeconds));
+
     if (seconds > 0) {
       result += `${seconds}s`;
     }
   }
+
   return result;
 }
 

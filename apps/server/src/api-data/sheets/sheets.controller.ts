@@ -3,11 +3,13 @@
  * Google Sheets
  */
 
-import type { AuthenticationStatus, CustomFields, ErrorResponse, Rundown } from 'ontime-types';
+import type { AuthenticationStatus, CustomFields, ErrorResponse, Rundown, RundownSummary } from 'ontime-types';
 import { getErrorMessage } from 'ontime-utils';
 
 import { Request, Response } from 'express';
 import { readFileSync } from 'fs';
+
+import { deleteFile } from '../../utils/fileManagement.js';
 
 import {
   revoke,
@@ -17,8 +19,7 @@ import {
   download,
   upload,
   getWorksheetOptions,
-} from '../../services/sheet-service/SheetService.js';
-import { deleteFile } from '../../utils/fileManagement.js';
+} from './sheets.service.js';
 
 export async function requestConnection(
   req: Request,
@@ -86,6 +87,7 @@ export async function readFromSheet(
     | {
         rundown: Rundown;
         customFields: CustomFields;
+        summary: RundownSummary;
       }
     | ErrorResponse
   >,

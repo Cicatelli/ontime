@@ -185,6 +185,7 @@ export const parseExcel = (
     if (isOntimeGroup(entry as OntimeEntry)) {
       const group = {
         ...entry,
+        id,
         targetDuration: entry.duration ? entry.duration : null,
         custom: { ...entryCustomFields },
       } as OntimeGroup;
@@ -200,7 +201,11 @@ export const parseExcel = (
     }
 
     if (isOntimeMilestone(entry as OntimeEntry)) {
-      const milestone = { ...entry, custom: { ...entryCustomFields } } as OntimeMilestone;
+      const milestone = {
+        ...entry,
+        id,
+        custom: { ...entryCustomFields },
+      } as OntimeMilestone;
       if (currentGroupId) {
         groupEntries.push(id);
         milestone.parent = currentGroupId;
@@ -212,9 +217,10 @@ export const parseExcel = (
       return;
     }
 
-    //and fall through to treat it as an event
+    // after group and milestones we only have events remaining
     const event = {
       ...entry,
+      id,
       custom: { ...entryCustomFields },
       type: SupportedEntry.Event,
     } as OntimeEvent;
@@ -223,6 +229,7 @@ export const parseExcel = (
       event.timerType = TimerType.CountDown;
     }
 
+    // we link all events unless user specifies otherwise
     if (entry.linkStart === undefined) {
       event.linkStart = true;
     }

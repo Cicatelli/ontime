@@ -13,7 +13,8 @@
   "tasks": {
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": ["ROUTER_PREFIX", "IS_CLOUD"]
     },
     "dev:electron": {
       "cache": false,

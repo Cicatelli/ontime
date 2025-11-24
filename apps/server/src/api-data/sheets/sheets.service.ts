@@ -15,6 +15,7 @@ import {
   MaybeString,
   OntimeGroup,
   Rundown,
+  RundownSummary,
   SupportedEntry,
 } from 'ontime-types';
 import { ImportMap, getErrorMessage } from 'ontime-utils';
@@ -23,13 +24,14 @@ import { sheets, type sheets_v4 } from '@googleapis/sheets';
 import { Credentials, OAuth2Client } from 'google-auth-library';
 
 import { logger } from '../../classes/Logger.js';
-import { parseRundowns } from '../../api-data/rundown/rundown.parser.js';
-import { getCurrentRundown, getProjectCustomFields } from '../../api-data/rundown/rundown.dao.js';
-import { parseExcel } from '../../api-data/excel/excel.parser.js';
-import { parseCustomFields } from '../../api-data/custom-fields/customFields.parser.js';
+import { parseRundowns } from '../rundown/rundown.parser.js';
+
+import { getCurrentRundown, getProjectCustomFields, processRundown } from '../rundown/rundown.dao.js';
+import { parseExcel } from '../excel/excel.parser.js';
+import { parseCustomFields } from '../custom-fields/customFields.parser.js';
 import { consoleSubdued } from '../../utils/console.js';
 
-import { cellRequestFromEvent, type ClientSecret, getA1Notation, isClientSecret } from './sheetUtils.js';
+import { cellRequestFromEvent, type ClientSecret, getA1Notation, isClientSecret } from './sheets.utils.js';
 import { catchCommonImportXlsxError } from './googleApi.utils.js';
 
 const sheetScope = 'https://www.googleapis.com/auth/spreadsheets';
@@ -460,6 +462,7 @@ export async function download(
 ): Promise<{
   rundown: Rundown;
   customFields: CustomFields;
+  summary: RundownSummary;
 }> {
   if (!currentAuthClient) {
     throw new Error('Not authenticated');
@@ -493,9 +496,9 @@ export async function download(
   };
 
   const customFields = parseCustomFields(dataModel);
-  const rundowns = parseRundowns(dataModel, customFields);
+  const parsedRundown = parseRundowns(dataModel, customFields);
 
-  const importedRundown = rundowns[rundownId];
+  const importedRundown = parsedRundown[rundownId];
   if (!importedRundown) {
     throw new Error(`Sheet: Rundown with ID ${rundownId} not found in the worksheet`);
   }
@@ -504,5 +507,22 @@ export async function download(
     throw new Error('Sheet: Could not find data to import in the worksheet');
   }
 
-  return { rundown: rundowns[rundownId], customFields };
+  const processedRundown = processRundown(importedRundown, customFields);
+
+  return {
+    rundown: {
+      id: importedRundown.id,
+      title: importedRundown.title,
+      order: processedRundown.order,
+      flatOrder: processedRundown.flatEntryOrder,
+      entries: processedRundown.entries,
+      revision: 0,
+    },
+    summary: {
+      duration: processedRundown.totalDuration,
+      start: processedRundown.firstStart,
+      end: processedRundown.lastEnd,
+    },
+    customFields,
+  };
 }

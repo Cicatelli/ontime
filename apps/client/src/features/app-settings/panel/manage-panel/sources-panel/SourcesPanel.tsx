@@ -3,7 +3,6 @@ import { IoCloudOutline, IoDownloadOutline } from 'react-icons/io5';
 import { getErrorMessage, ImportMap } from 'ontime-utils';
 
 import {
-  getWorksheetNames as getWorksheetNamesExcel,
   importRundownPreview as importRundownPreviewExcel,
   upload as uploadExcel,
 } from '../../../../../common/api/excel';
@@ -37,8 +36,11 @@ export default function SourcesPanel() {
   const setRundown = useSheetStore((state) => state.setRundown);
   const customFields = useSheetStore((state) => state.customFields);
   const setCustomFields = useSheetStore((state) => state.setCustomFields);
+  const summary = useSheetStore((state) => state.summary);
+  const setSummary = useSheetStore((state) => state.setSummary);
   const setSheetId = useSheetStore((state) => state.setSheetId);
   const sheetId = useSheetStore((state) => state.sheetId);
+  const resetPreview = useSheetStore((state) => state.resetPreview);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,8 +55,7 @@ export default function SourcesPanel() {
     try {
       setHasFile('loading');
       validateExcelImport(fileToUpload);
-      await uploadExcel(fileToUpload);
-      const names = await getWorksheetNamesExcel();
+      const names = await uploadExcel(fileToUpload);
       setWorksheets(names);
       setImportFlow('excel');
       setHasFile('done');
@@ -77,6 +78,7 @@ export default function SourcesPanel() {
     setHasFile('none');
     setWorksheets(null);
     setCustomFields(null);
+    setSummary(null);
     setError('');
     setSheetId(null);
   };
@@ -110,6 +112,7 @@ export default function SourcesPanel() {
         const previewData = await importRundownPreviewExcel(importMap);
         setRundown(previewData.rundown);
         setCustomFields(previewData.customFields);
+        setSummary(previewData.summary);
       } catch (error) {
         setError(maybeAxiosError(error));
       }
@@ -152,7 +155,7 @@ export default function SourcesPanel() {
   const showCompleted = importFlow === 'finished';
   const showAuth = isGSheetFlow && !isAuthenticated;
   const showImportMap = (isGSheetFlow && isAuthenticated) || (isExcelFlow && hasFile === 'done');
-  const showReview = rundown !== null && customFields !== null;
+  const showReview = rundown !== null && customFields !== null && summary !== null;
 
   return (
     <Panel.Section>
@@ -219,8 +222,10 @@ export default function SourcesPanel() {
           <ImportReview
             rundown={rundown}
             customFields={customFields}
+            summary={summary}
             onFinished={handleFinished}
             onCancel={cancelImportMap}
+            onBack={resetPreview}
           />
         )}
       </Panel.Card>
