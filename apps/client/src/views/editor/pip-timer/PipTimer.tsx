@@ -40,7 +40,7 @@ export function PipTimer({ viewSettings }: PipTimerProps) {
 
   // gather timer data
   const totalTime = getTotalTime(time.duration, time.addedTime);
-  const stageTimer = getTimerByType(false, timerTypeNow, countToEndNow, clock, time, timerTypeNow);
+  const stageTimer = getTimerByType(false, timerTypeNow, clock, time, timerTypeNow);
   const display = getFormattedTimer(stageTimer, timerTypeNow, 'min', {
     removeSeconds: false,
     removeLeadingZero: false,
@@ -59,11 +59,11 @@ export function PipTimer({ viewSettings }: PipTimerProps) {
     return null;
   })();
 
-  const secondaryContent = getSecondaryDisplay(message, currentAux, 'min', false, false, false);
+  const secondaryContent = getSecondaryDisplay(message, currentAux, 'min', false, true, false);
 
   // gather presentation styles
   const resolvedTimerColour = getTimerColour(viewSettings, undefined, showWarning, showDanger);
-  const { timerFontSize, externalFontSize } = getEstimatedFontSize(display, secondaryContent);
+  const timerFontSize = getEstimatedFontSize(display, secondaryContent);
   const userStyles = {
     ...(resolvedTimerColour && { '--timer-colour': resolvedTimerColour }),
   };
@@ -84,11 +84,10 @@ export function PipTimer({ viewSettings }: PipTimerProps) {
         >
           {display}
         </div>
-        <div
-          className={cx(['secondary', !secondaryContent && 'secondary--hidden'])}
-          style={{ fontSize: `${externalFontSize}vw` }}
-        >
-          {secondaryContent}
+        <div className={cx(['secondary', !secondaryContent && 'secondary--hidden'])}>
+          <FitText mode='multi' min={12} max={256}>
+            {secondaryContent}
+          </FitText>
         </div>
       </div>
 

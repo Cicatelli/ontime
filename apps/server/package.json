@@ -2,7 +2,7 @@
   "name": "ontime-server",
   "type": "module",
   "main": "src/index.ts",
-  "version": "4.2.0",
+  "version": "4.2.1",
   "exports": "./src/index.js",
   "dependencies": {
     "@googleapis/sheets": "^5.0.5",
@@ -60,6 +60,7 @@
     "build": "node esbuild.js",
     
     "test": "cross-env IS_TEST=true vitest",
+    "test:inspect": "cross-env IS_TEST=true vitest --inspect --no-file-parallelism",
     "test:pipeline": "cross-env IS_TEST=true vitest run"
   }
 }
