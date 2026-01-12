@@ -44,8 +44,9 @@ export default function OntimeActionForm({
       <label>
         Action
         <Select
-          onValueChange={(value) => {
-            handleSetAction(value as OntimeActionKey);
+          onValueChange={(value: OntimeActionKey | null) => {
+            if (value === null) return;
+            handleSetAction(value);
           }}
           value={watch(`outputs.${index}.action`)}
           options={[
@@ -97,13 +98,13 @@ export default function OntimeActionForm({
             Visibility
             <Select
               onValueChange={(value) => {
-                // we need to translate the undefined value to 'untouched'
-                const translatedValue = value === 'untouched' ? undefined : (value as boolean | undefined);
+                // we need to translate the null to undefined so it becomes 'untouched'
+                const translatedValue = value === null ? undefined : value;
                 setValue(`outputs.${index}.visible`, translatedValue, { shouldDirty: true });
               }}
-              value={watch(`outputs.${index}.visible`) === undefined ? 'untouched' : watch(`outputs.${index}.visible`)}
+              value={watch(`outputs.${index}.visible`)}
               options={[
-                { value: 'untouched', label: 'Untouched' },
+                { value: null, label: 'Untouched' },
                 { value: true, label: 'Show' },
                 { value: false, label: 'Hide' },
               ]}
@@ -116,9 +117,16 @@ export default function OntimeActionForm({
       {selectedAction === 'message-secondary' && (
         <label>
           Timer secondary source
-          <Select
+          <Select<SecondarySource | 'null' | null>
             onValueChange={(value) => {
-              setValue(`outputs.${index}.secondarySource`, value as SecondarySource, { shouldDirty: true });
+              // null -> no selection
+              if (value === null) return;
+              // 'null' -> clear the secondary source
+              if (value === 'null') {
+                setValue(`outputs.${index}.secondarySource`, null, { shouldDirty: true });
+                return;
+              }
+              setValue(`outputs.${index}.secondarySource`, value, { shouldDirty: true });
             }}
             value={watch(`outputs.${index}.secondarySource`)}
             options={[
@@ -126,13 +134,14 @@ export default function OntimeActionForm({
               { value: 'aux1', label: 'Auxiliary timer 1' },
               { value: 'aux2', label: 'Auxiliary timer 2' },
               { value: 'aux3', label: 'Auxiliary timer 3' },
-              { value: 'external', label: 'External' },
-              { value: 'null', label: 'None' },
+              { value: 'secondary', label: 'Secondary' },
+              { value: 'null', label: 'None' }, // allow the user to clear the secondary source
             ]}
           />
           <Panel.Error>{rowErrors?.secondarySource?.message}</Panel.Error>
         </label>
       )}
+
       <div className={style.test}>{children}</div>
     </div>
   );

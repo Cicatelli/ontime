@@ -8,7 +8,7 @@ import { setMessage, useTimerViewControl } from '../../../common/hooks/useSocket
 
 import TimerPreview from './TimerPreview';
 
-import style from './MessageControl.module.scss';
+import style from './TimerViewControl.module.scss';
 
 export default function TimerControlsPreview() {
   const { blackout, blink } = useTimerViewControl();
@@ -71,12 +71,13 @@ function SecondarySourceControl() {
           { value: 'aux3', label: 'Aux 3' },
           { value: 'secondary', label: 'Secondary message' },
         ]}
-        onValueChange={(value) => {
+        onValueChange={(value: SecondarySource | null) => {
+          if (value === null) return;
           // we can only update the remote if it is enabled
           if (secondarySource !== null) {
-            setMessage.timerSecondarySource(value as SecondarySource);
+            setMessage.timerSecondarySource(value);
           }
-          setValue(value as SecondarySource);
+          setValue(value);
         }}
       />
       <Button

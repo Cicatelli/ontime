@@ -20,13 +20,11 @@ import { eventStore } from '../stores/EventStore.js';
 import * as assert from '../utils/assert.js';
 import { parseProperty, isValidChangeProperty } from './integration.utils.js';
 import { socket } from '../adapters/WebsocketAdapter.js';
-import { throttle } from '../utils/throttle.js';
 import { coerceEnum } from '../utils/coerceType.js';
 import { editEntry } from '../api-data/rundown/rundown.service.js';
 import { willCauseRegeneration } from '../api-data/rundown/rundown.utils.js';
-import { getCurrentRundown } from '../api-data/rundown/rundown.dao.js';
+import { getCurrentRundown, getProjectCustomFields } from '../api-data/rundown/rundown.dao.js';
 
-const throttledEditEvent = throttle(editEntry, 20);
 let lastRequest: Date | null = null;
 
 export function dispatchFromAdapter(tag: string, payload: unknown, _source?: 'osc' | 'ws' | 'http') {
@@ -45,7 +43,9 @@ export function getLastRequest() {
   return lastRequest;
 }
 
-type ActionHandler = (payload: unknown) => { payload: unknown };
+type ActionHandler =
+  | ((payload: unknown) => { payload: unknown })
+  | ((payload: unknown) => Promise<{ payload: unknown }>);
 
 const actionHandlers: Record<ApiActionTag, ActionHandler> = {
   /* General */
@@ -53,7 +53,7 @@ const actionHandlers: Record<ApiActionTag, ActionHandler> = {
   poll: () => ({
     payload: eventStore.poll(),
   }),
-  change: (payload) => {
+  change: async (payload) => {
     assert.isObject(payload);
     if (Object.keys(payload).length === 0) {
       throw new Error('Payload is empty');
@@ -65,6 +65,7 @@ const actionHandlers: Record<ApiActionTag, ActionHandler> = {
     }
 
     const { entries } = getCurrentRundown();
+    const customFields = getProjectCustomFields();
 
     const targetEntry = entries[id];
     if (!targetEntry) {
@@ -77,7 +78,7 @@ const actionHandlers: Record<ApiActionTag, ActionHandler> = {
     let shouldThrottle = false;
 
     Object.entries(data).forEach(([property, value]) => {
-      if (!isValidChangeProperty(targetEntry, property, value)) {
+      if (!isValidChangeProperty(targetEntry, property, value, customFields)) {
         throw new Error('Invalid property or value');
       }
       const newObjectProperty = parseProperty(property, value);
@@ -89,16 +90,8 @@ const actionHandlers: Record<ApiActionTag, ActionHandler> = {
         Object.assign(patchEntry, newObjectProperty);
       }
     });
-
-    if (shouldThrottle) {
-      if (throttledEditEvent(patchEntry)) {
-        return { payload: 'throttled' };
-      }
-    } else {
-      editEntry(patchEntry).catch((_error) => {
-        /** No error handling */
-      });
-    }
+    //TODO: windowed edit function
+    await editEntry(patchEntry);
     return { payload: 'success' };
   },
   /* Message Service */

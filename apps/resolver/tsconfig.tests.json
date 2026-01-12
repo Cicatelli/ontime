@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.tests.json",
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "allowUnusedLabels": false,
+    "removeComments": true,
+    "preserveConstEnums": true,
+    "allowJs": true,
+    "declaration": true,
+    "outDir": "dist",
+    "sourceMap": true,
+    "baseUrl": "src",
+    "composite": true
+  },
+  "include": [
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+  ]
+}

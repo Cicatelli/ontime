@@ -13,7 +13,7 @@ import Input from '../../common/components/input/input/Input';
 import Select from '../../common/components/select/Select';
 import Switch from '../../common/components/switch/Switch';
 import { useUpdateUrlPreset } from '../../common/hooks-query/useUrlPresets';
-import copyToClipboard from '../../common/utils/copyToClipboard';
+import { safeCopyToClipboard } from '../../common/utils/copyToClipboard';
 import { preventEscape } from '../../common/utils/keyEvent';
 import { isUrlSafe } from '../../common/utils/regex';
 import { isOntimeCloud, serverURL } from '../../externals';
@@ -125,7 +125,7 @@ export default function GenerateLinkForm({ hostOptions, pathOptions, presets, is
           lockNav: options.lockNav,
           preset: urlPreset.alias,
         });
-        await copyToClipboard(url);
+        await safeCopyToClipboard(url);
         setUrl(url);
       } else {
         const presetPath = options.path.startsWith('preset-') ? options.path.replace('preset-', '') : undefined;
@@ -143,7 +143,7 @@ export default function GenerateLinkForm({ hostOptions, pathOptions, presets, is
           preset: presetPath,
         });
 
-        await copyToClipboard(url);
+        await safeCopyToClipboard(url);
         setUrl(url);
       }
       reset(options, {
@@ -179,7 +179,10 @@ export default function GenerateLinkForm({ hostOptions, pathOptions, presets, is
                 <Select
                   options={hostOptions}
                   value={watch('baseUrl')}
-                  onValueChange={(value) => setValue('baseUrl', value)}
+                  onValueChange={(value: string | null) => {
+                    if (value === null) return;
+                    setValue('baseUrl', value);
+                  }}
                 />
               </Panel.ListItem>
             )}
@@ -191,7 +194,10 @@ export default function GenerateLinkForm({ hostOptions, pathOptions, presets, is
                 <Select
                   options={pathOptions}
                   value={watch('path')}
-                  onValueChange={(value) => setValue('path', value, { shouldDirty: true })}
+                  onValueChange={(value: OntimeView | string | null) => {
+                    if (value === null) return;
+                    setValue('path', value, { shouldDirty: true });
+                  }}
                 />
               </Panel.ListItem>
             )}

@@ -7,7 +7,6 @@
     "noImplicitReturns": false, //TODO: fix this
     "allowJs": true,
     "esModuleInterop": true,
-    "types": ["vitest/globals"],
     "outDir": "dist",
     "experimentalDecorators": true,
   },
@@ -15,4 +14,13 @@
     "src/**/*.ts",
     "src/**/*.js",
   ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.tests.json"
+    }
+  ]
 }

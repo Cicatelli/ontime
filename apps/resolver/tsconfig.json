@@ -18,5 +18,12 @@
   ],
   "exclude": [
     "node_modules",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.tests.json"
+    }
   ]
 }

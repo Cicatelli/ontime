@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { OntimeView } from 'ontime-types';
+import { OntimeView, TimerType } from 'ontime-types';
 
 import { FitText } from '../../common/components/fit-text/FitText';
 import MultiPartProgressBar from '../../common/components/multi-part-progress-bar/MultiPartProgressBar';
@@ -11,10 +11,10 @@ import { useTimerSocket } from '../../common/hooks/useSocket';
 import { useWindowTitle } from '../../common/hooks/useWindowTitle';
 import { cx } from '../../common/utils/styleUtils';
 import { formatTime, getDefaultFormat } from '../../common/utils/time';
-import SuperscriptTime from '../../features/viewers/common/superscript-time/SuperscriptTime';
-import { getFormattedTimer, getTimerByType } from '../../features/viewers/common/viewUtils';
 import { useTranslation } from '../../translation/TranslationProvider';
 import Loader from '../common/loader/Loader';
+import SuperscriptTime from '../common/superscript-time/SuperscriptTime';
+import { getFormattedTimer, getTimerByType } from '../common/viewUtils';
 import { getTimerColour } from '../utils/presentation.utils';
 
 import { getTimerOptions, useTimerOptions } from './timer.options';
@@ -133,6 +133,7 @@ function Timer({ customFields, projectData, isMirrored, settings, viewSettings }
   // gather presentation styles
   const resolvedTimerColour = getTimerColour(viewSettings, timerColour, showWarning, showDanger);
   const timerFontSize = getEstimatedFontSize(display, secondaryContent);
+  const subduePaused = !isPlaying && viewTimerType !== TimerType.Clock;
   const userStyles = {
     ...(keyColour && { '--timer-bg': keyColour }),
     ...(resolvedTimerColour && { '--timer-colour': resolvedTimerColour }),
@@ -177,7 +178,7 @@ function Timer({ customFields, projectData, isMirrored, settings, viewSettings }
           </FitText>
         ) : (
           <div
-            className={cx(['timer', !isPlaying && 'timer--paused', showFinished && 'timer--finished'])}
+            className={cx(['timer', subduePaused && 'timer--paused', showFinished && 'timer--finished'])}
             style={{ fontSize: `${timerFontSize}vw` }}
             data-type={viewTimerType}
             data-phase={time.phase}

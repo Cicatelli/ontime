@@ -246,12 +246,19 @@ export function load(
     patchTimer(initialData);
     const startEpoch = initialData?.startEpoch;
     const firstStart = initialData?.firstStart;
+    const currentDay = initialData?.currentDay;
     if (
       (firstStart === null || typeof firstStart === 'number') &&
       (startEpoch === null || typeof startEpoch === 'number')
     ) {
       runtimeState.rundown.actualStart = firstStart;
       runtimeState._startEpoch = startEpoch;
+      if (firstStart !== null && runtimeState.rundown.plannedStart !== null) {
+        runtimeState._startDayOffset = findDayOffset(runtimeState.rundown.plannedStart, firstStart);
+      }
+      if (currentDay !== undefined) {
+        runtimeState.rundown.currentDay = currentDay;
+      }
       const { absolute, relative } = getRuntimeOffset(runtimeState);
       runtimeState.offset.absolute = absolute;
       runtimeState.offset.relative = relative;
@@ -276,7 +283,12 @@ export function loadNow(
     return;
   }
 
-  const event = rundown.entries[metadata.timedEventOrder[eventIndex]] as PlayableEvent;
+  const eventId = metadata.timedEventOrder[eventIndex];
+  if (!eventId) {
+    runtimeState.eventNow = null;
+    return;
+  }
+  const event = rundown.entries[eventId] as PlayableEvent;
   runtimeState.rundown.selectedEventIndex = eventIndex;
   runtimeState.eventNow = event;
 }
@@ -302,6 +314,10 @@ export function loadNext(
     return;
   }
   const nextId = metadata.playableEventOrder[nowPlayableIndex + 1];
+  if (!nextId) {
+    runtimeState.eventNext = null;
+    return;
+  }
   runtimeState.eventNext = rundown.entries[nextId] as PlayableEvent;
 }
 
@@ -488,13 +504,13 @@ export function addTime(amount: number) {
 
   // we can update the state after handling the side effects
   runtimeState.timer.addedTime += amount;
-  runtimeState.timer.expectedFinish += amount;
   runtimeState.timer.current += amount;
 
   // update runtime delays: over - under
   const { absolute, relative } = getRuntimeOffset(runtimeState);
   runtimeState.offset.absolute = absolute;
   runtimeState.offset.relative = relative;
+  runtimeState.timer.expectedFinish = getExpectedFinish(runtimeState);
   getExpectedTimes();
 
   return true;

@@ -8,14 +8,19 @@
     "removeComments": true,
     "preserveConstEnums": true,
     "allowJs": true,
-    "baseUrl": "src",
-    "types": ["vitest/globals"]
+    "baseUrl": "src"
   },
   "include": [
-    "src",
-    "../node_modules/.pnpm/vitest@0.26.3/node_modules/vitest/globals.d.ts"
+    "src"
   ],
   "exclude": [
     "node_modules",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.tests.json"
+    }
   ]
 }

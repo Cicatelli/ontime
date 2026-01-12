@@ -230,10 +230,18 @@ export default function AutomationForm({ automation, onClose }: AutomationFormPr
               <div key={key} className={style.filterSection}>
                 <label>
                   Runtime data source
-                  <Select
-                    value={watch(`filters.${index}.field`)}
-                    onValueChange={(value) => setValue(`filters.${index}.field`, value, { shouldDirty: true })}
-                    options={fieldList.map(({ value, label }) => ({ value, label }))}
+                  <Select<string | null>
+                    // need to normalize '' to null for the Select to show the placeholder
+                    value={watch(`filters.${index}.field`) || null}
+                    onValueChange={(value) => {
+                      if (value === null) return;
+                      setValue(`filters.${index}.field`, value, { shouldDirty: true });
+                    }}
+                    options={fieldList.map(({ value, label }) => ({
+                      value,
+                      label,
+                      disabled: value === null,
+                    }))}
                     aria-label='Event field'
                   />
                   <Panel.Error>{errors.filters?.[index]?.field?.message}</Panel.Error>
@@ -242,11 +250,14 @@ export default function AutomationForm({ automation, onClose }: AutomationFormPr
                   Matching condition
                   <Select
                     value={watch(`filters.${index}.operator`)}
-                    onValueChange={(value) =>
-                      setValue(`filters.${index}.operator`, value as 'equals' | 'not_equals' | 'contains', {
-                        shouldDirty: true,
-                      })
-                    }
+                    onValueChange={(value: string | null) => {
+                      if (value === null) return;
+                      setValue(
+                        `filters.${index}.operator`,
+                        value as 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'contains' | 'not_contains',
+                        { shouldDirty: true },
+                      );
+                    }}
                     options={[
                       { value: 'equals', label: 'equals' },
                       { value: 'not_equals', label: 'not equals' },
@@ -282,7 +293,8 @@ export default function AutomationForm({ automation, onClose }: AutomationFormPr
       <div className={style.innerColumn}>
         <h3>Outputs</h3>
         <Info>
-          Automation outputs can be used to send data from Ontime to external software.
+          Automation outputs can be used to send data from Ontime to external software <br />
+          or to change properties of Ontime itself.
           <ExternalLink href={integrationsDocsUrl}>See the documentation for templates</ExternalLink>
         </Info>
 
