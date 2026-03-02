@@ -9,7 +9,10 @@ import type {
 } from 'ontime-types';
 import { isOntimeEvent, isOntimeGroup, isPlayableEvent } from 'ontime-types';
 
+import { insertAtIndex } from '../common/arrayUtils.js';
+
 type IndexAndEntry = { entry: OntimeEntry | null; index: number | null };
+type GroupIndexAndEntry = { entry: OntimeGroup | null; index: number | null };
 
 /**
  * Gets first event in a normalised rundown, if it exists
@@ -94,7 +97,7 @@ export function getLastEvent(rundown: OntimeEntry[]): {
  */
 export function getLastEventNormal(
   rundown: RundownEntries,
-  order: string[],
+  order: EntryId[],
 ): {
   lastEvent: OntimeEvent | null;
   lastIndex: number | null;
@@ -116,34 +119,20 @@ export function getLastEventNormal(
 /**
  * Gets next entry in rundown, if it exists
  */
-export function getNext(
-  rundown: Pick<Rundown, 'entries' | 'order'>,
-  currentId: string,
-): { nextEvent: OntimeEntry | null; nextIndex: number | null } {
-  const index = rundown.order.findIndex((entryId) => entryId === currentId);
-  if (index !== -1 && index + 1 < rundown.order.length) {
-    const nextIndex = index + 1;
-    const nextId = rundown.order[nextIndex];
-    const nextEvent = rundown.entries[nextId];
-    return { nextEvent, nextIndex };
-  } else {
-    return { nextEvent: null, nextIndex: null };
+export function getNextNormal(rundown: RundownEntries, flatOrder: EntryId[], currentId: EntryId | null): IndexAndEntry {
+  if (currentId === null) {
+    const entry = getFirstNormal(rundown, flatOrder);
+    return { entry, index: entry ? 0 : null };
   }
-}
 
-/**
- * Gets next entry in rundown, if it exists
- */
-export function getNextNormal(rundown: RundownEntries, order: string[], currentId: string): IndexAndEntry {
-  const currentIndex = order.findIndex((id) => id === currentId);
-  if (currentIndex !== -1 && currentIndex + 1 < order.length) {
+  const currentIndex = flatOrder.findIndex((id) => id === currentId);
+  if (currentIndex !== -1 && currentIndex + 1 < flatOrder.length) {
     const index = currentIndex + 1;
-    const nextId = order[index];
+    const nextId = flatOrder[index];
     const entry = rundown[nextId];
     return { entry, index };
-  } else {
-    return { entry: null, index: null };
   }
+  return { entry: null, index: null };
 }
 
 /**
@@ -151,7 +140,7 @@ export function getNextNormal(rundown: RundownEntries, order: string[], currentI
  */
 export function getNextEvent(
   rundown: OntimeEntry[],
-  currentId: string,
+  currentId: EntryId,
 ): { nextEvent: OntimeEvent | null; nextIndex: number | null } {
   const index = rundown.findIndex((entry) => entry.id === currentId);
   if (index < 0) {
@@ -173,7 +162,7 @@ export function getNextEvent(
 export function getNextEventNormal(
   entries: RundownEntries,
   order: EntryId[],
-  currentId: string,
+  currentId: EntryId,
 ): { nextEvent: OntimeEvent | null; nextIndex: number | null } {
   const index = order.findIndex((entryId) => entryId === currentId);
   if (index < 0) {
@@ -191,56 +180,54 @@ export function getNextEventNormal(
 }
 
 /**
- * Gets previous entry in rundown, if it exists
- */
-export function getPrevious(rundown: Pick<Rundown, 'entries' | 'order'>, currentId: string): IndexAndEntry {
-  const currentIndex = rundown.order.findIndex((entryId) => entryId === currentId);
-
-  if (currentIndex > 1) {
-    const index = currentIndex - 1;
-    const previousId = rundown.order[index];
-    const entry = rundown.entries[previousId];
-    return { entry, index };
-  } else {
-    return { entry: null, index: null };
-  }
-}
-
-/**
  * Gets previous entry in a normalised rundown, if it exists
  */
-export function getPreviousNormal(entries: RundownEntries, order: string[], currentId: string): IndexAndEntry {
-  const currentIndex = order.findIndex((id) => id === currentId);
+export function getPreviousNormal(
+  entries: RundownEntries,
+  flatOrder: EntryId[],
+  currentId: EntryId | null,
+): IndexAndEntry {
+  if (currentId === null) {
+    const entry = getLastNormal(entries, flatOrder);
+    return { entry, index: entry ? flatOrder.length - 1 : null };
+  }
 
+  const currentIndex = flatOrder.findIndex((id) => id === currentId);
   if (currentIndex !== -1 && currentIndex - 1 >= 0) {
     const index = currentIndex - 1;
-    const previousId = order[index];
+    const previousId = flatOrder[index];
     const entry = entries[previousId];
     return { entry, index };
-  } else {
-    return { entry: null, index: null };
   }
+  return { entry: null, index: null };
 }
 
 /**
- * Gets previous scheduled event in rundown, if it exists
+ * Gets first group in a normalised rundown, if it exists
  */
-export function getPreviousEvent(
-  rundown: Pick<Rundown, 'entries' | 'order'>,
-  currentId: string,
-): { previousEvent: OntimeEvent | null; previousIndex: number | null } {
-  const index = rundown.order.findIndex((entryId) => entryId === currentId);
-  if (index < 0) {
-    return { previousEvent: null, previousIndex: null };
-  }
-  for (let i = index - 1; i >= 0; i--) {
-    const previousId = rundown.order[i];
-    const previousEvent = rundown.entries[previousId];
-    if (isOntimeEvent(previousEvent)) {
-      return { previousEvent, previousIndex: i };
+export function getFirstGroupNormal(entries: RundownEntries, flatOrder: EntryId[]): GroupIndexAndEntry {
+  for (let index = 0; index < flatOrder.length; index++) {
+    const id = flatOrder[index];
+    const entry = entries[id];
+    if (isOntimeGroup(entry)) {
+      return { entry, index };
     }
   }
-  return { previousEvent: null, previousIndex: null };
+  return { entry: null, index: null };
+}
+
+/**
+ * Gets last group in a normalised rundown, if it exists
+ */
+export function getLastGroupNormal(entries: RundownEntries, flatOrder: EntryId[]): GroupIndexAndEntry {
+  for (let index = flatOrder.length - 1; index >= 0; index--) {
+    const id = flatOrder[index];
+    const entry = entries[id];
+    if (isOntimeGroup(entry)) {
+      return { entry, index };
+    }
+  }
+  return { entry: null, index: null };
 }
 
 /**
@@ -249,7 +236,7 @@ export function getPreviousEvent(
 export function getPreviousEventNormal(
   entries: RundownEntries,
   order: EntryId[],
-  currentId: string,
+  currentId: EntryId,
 ): { previousEvent: OntimeEvent | null; previousIndex: number | null } {
   const index = order.findIndex((entryId) => entryId === currentId);
   if (index < 0) {
@@ -308,18 +295,26 @@ export const swapEventData = (eventA: OntimeEvent, eventB: OntimeEvent): [newA: 
   return [newA, newB];
 };
 
-export function getEventWithId(rundown: OntimeEntry[], id: string): OntimeEntry | undefined {
+export function getEventWithId(rundown: OntimeEntry[], id: EntryId): OntimeEntry | undefined {
   return rundown.find((event) => event.id === id);
 }
 
 /**
  * Gets relevant group element for a given ID
  */
-export function getPreviousGroupNormal(rundown: RundownEntries, order: string[], currentId: string): IndexAndEntry {
+export function getPreviousGroupNormal(
+  rundown: RundownEntries,
+  flatOrder: EntryId[],
+  currentId: EntryId | null,
+): IndexAndEntry {
+  if (currentId === null) {
+    return getLastGroupNormal(rundown, flatOrder);
+  }
+
   let foundCurrentEvent = false;
   // Iterate backwards through the rundown to find the current event
-  for (let index = order.length - 1; index >= 0; index--) {
-    const id = order[index];
+  for (let index = flatOrder.length - 1; index >= 0; index--) {
+    const id = flatOrder[index];
     if (!foundCurrentEvent && id === currentId) {
       // set the flag when the current event is found
       foundCurrentEvent = true;
@@ -338,11 +333,19 @@ export function getPreviousGroupNormal(rundown: RundownEntries, order: string[],
 /**
  * Gets next group element for a given ID
  */
-export function getNextGroupNormal(rundown: RundownEntries, order: string[], currentId: string): IndexAndEntry {
+export function getNextGroupNormal(
+  rundown: RundownEntries,
+  flatOrder: EntryId[],
+  currentId: EntryId | null,
+): IndexAndEntry {
+  if (currentId === null) {
+    return getFirstGroupNormal(rundown, flatOrder);
+  }
+
   let foundCurrentEvent = false;
   // Iterate backwards through the rundown to find the current event
-  for (let index = 0; index < order.length; index++) {
-    const id = order[index];
+  for (let index = 0; index < flatOrder.length; index++) {
+    const id = flatOrder[index];
     if (!foundCurrentEvent && id === currentId) {
       // set the flag when the current event is found
       foundCurrentEvent = true;
@@ -359,31 +362,102 @@ export function getNextGroupNormal(rundown: RundownEntries, order: string[], cur
 }
 
 /**
- * Gets relevant group element for a given ID
+ * Receives an insertion order and returns the reference to an entry ID
+ * after which we will insert the new entry
  */
-export function getPreviousGroup(rundown: Pick<Rundown, 'entries' | 'order'>, currentId: EntryId): OntimeGroup | null {
-  const currentEvent = rundown.entries[currentId];
+export function getInsertAfterId(
+  rundown: Rundown,
+  parent: OntimeGroup | null,
+  afterId?: EntryId,
+  beforeId?: EntryId,
+): EntryId | null {
+  if (afterId) return afterId;
+  if (!beforeId) return null;
 
-  // check if event is inside a group
-  if (isOntimeEvent(currentEvent) && currentEvent.parent) {
-    return rundown.entries[currentEvent.parent] as OntimeGroup;
+  const insertionList = parent ? parent.entries : rundown.order;
+  if (!insertionList || insertionList.length === 0) return null;
+
+  const atIndex = insertionList.findIndex((id) => id === beforeId);
+  if (atIndex < 1) return null;
+  return insertionList[atIndex - 1];
+}
+
+type ResolveInsertParentOptions = {
+  parent?: EntryId | null;
+  after?: EntryId;
+  before?: EntryId;
+};
+
+/**
+ * Resolves the parent ID for an insertion.
+ * Uses explicit parent first, then infers from sibling references.
+ */
+export function resolveInsertParent(rundown: Rundown, options: ResolveInsertParentOptions): EntryId | null {
+  if (options.parent) {
+    return options.parent;
   }
 
-  let foundCurrentEvent = false;
-  // Iterate backwards through the rundown to find the current event
-  for (let i = rundown.order.length - 1; i >= 0; i--) {
-    const entryId = rundown.order[i];
-    const entry = rundown.entries[entryId];
-    if (!foundCurrentEvent && entry.id === currentId) {
-      // set the flag when the current event is found
-      foundCurrentEvent = true;
-      continue;
-    }
-    // the first group before the current event is the relevant one
-    if (foundCurrentEvent && isOntimeGroup(entry)) {
-      return entry;
-    }
+  const referenceId = options.after ?? options.before;
+  if (!referenceId) return null;
+
+  const maybeSibling = rundown.entries[referenceId];
+  if (maybeSibling && 'parent' in maybeSibling && maybeSibling.parent) {
+    return maybeSibling.parent;
   }
-  // no groups exist before null event
+
   return null;
+}
+
+/**
+ * Add entry to rundown, mutates the rundown in place.
+ * Handles the following cases:
+ * - 1a. add entry in group, after a given entry
+ * - 1b. add entry in group, at the beginning (right after the group header)
+ * - 2a. add entry to the rundown, after a given entry
+ * - 2b. add entry to the rundown, at the beginning
+ */
+export function addToRundown(
+  rundown: Rundown,
+  entry: OntimeEntry,
+  afterId: EntryId | null,
+  parent: OntimeGroup | null,
+): OntimeEntry {
+  if (parent) {
+    // 1. inserting an entry inside a group
+
+    // assign the parent reference on the entry
+    if ('parent' in entry) {
+      entry.parent = parent.id;
+    }
+
+    if (afterId) {
+      // 1a. insert after a given entry within the group
+      const atEventsIndex = parent.entries.indexOf(afterId) + 1;
+      const atFlatIndex = rundown.flatOrder.indexOf(afterId) + 1;
+      parent.entries = insertAtIndex(atEventsIndex, entry.id, parent.entries);
+      rundown.flatOrder = insertAtIndex(atFlatIndex, entry.id, rundown.flatOrder);
+    } else {
+      // 1b. insert at the beginning of the group (right after the group header in flatOrder)
+      parent.entries = insertAtIndex(0, entry.id, parent.entries);
+      const atFlatIndex = rundown.flatOrder.indexOf(parent.id) + 1;
+      rundown.flatOrder = insertAtIndex(atFlatIndex, entry.id, rundown.flatOrder);
+    }
+  } else {
+    // 2. inserting an entry at top level
+    if (afterId) {
+      // 2a. insert after a given entry
+      const atOrderIndex = rundown.order.indexOf(afterId) + 1;
+      const atFlatIndex = rundown.flatOrder.indexOf(afterId) + 1;
+      rundown.order = insertAtIndex(atOrderIndex, entry.id, rundown.order);
+      rundown.flatOrder = insertAtIndex(atFlatIndex, entry.id, rundown.flatOrder);
+    } else {
+      // 2b. insert at the beginning
+      rundown.order = insertAtIndex(0, entry.id, rundown.order);
+      rundown.flatOrder = insertAtIndex(0, entry.id, rundown.flatOrder);
+    }
+  }
+
+  // either way, we register the entry in the entries map
+  rundown.entries[entry.id] = entry;
+  return entry;
 }

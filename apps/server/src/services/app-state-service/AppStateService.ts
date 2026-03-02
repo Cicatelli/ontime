@@ -10,6 +10,7 @@ interface AppState {
   projectName?: string;
   rundownId?: string;
   showWelcomeDialog?: boolean;
+  serverPort?: number;
 }
 
 const adapter = new JSONFile<AppState>(publicFiles.appState);
@@ -46,9 +47,11 @@ export async function setLastLoadedRundown(rundownKey: string): Promise<void> {
   await config.write();
 }
 
-export async function getShowWelcomeDialog(): Promise<boolean> {
+export async function getShowWelcomeDialog(restorePointExists: boolean): Promise<boolean> {
   // in test environment, we do not want the dialog
   if (isTest) return false;
+
+  if (restorePointExists) return false;
 
   await config.read();
   return config.data.showWelcomeDialog ?? true; // default to  true
@@ -58,4 +61,14 @@ export async function setShowWelcomeDialog(show: boolean): Promise<boolean> {
   config.data.showWelcomeDialog = show;
   await config.write();
   return show;
+}
+
+export async function getServerPort(): Promise<number | undefined> {
+  await config.read();
+  return config.data.serverPort;
+}
+
+export async function setServerPort(port: number): Promise<void> {
+  config.data.serverPort = port;
+  await config.write();
 }

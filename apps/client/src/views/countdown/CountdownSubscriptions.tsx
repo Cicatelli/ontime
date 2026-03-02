@@ -36,9 +36,9 @@ interface CountdownSubscriptionsProps {
 }
 
 export default function CountdownSubscriptions({ subscribedEvents, goToEditMode }: CountdownSubscriptionsProps) {
-  const { secondarySource, showExpected } = useCountdownOptions();
-  const { playback } = usePlayback();
-  const { selectedEventId } = useSelectedEventId();
+  const { mainSource, secondarySource, showExpected } = useCountdownOptions();
+  const playback = usePlayback();
+  const selectedEventId = useSelectedEventId();
   const showFab = useFadeOutOnInactivity(true);
 
   const { data: reportData } = useReport();
@@ -103,7 +103,7 @@ export default function CountdownSubscriptions({ subscribedEvents, goToEditMode 
         const isLive = getIsLive(event.id, selectedEventId, playback);
         const isArmed = !isLive && event.id === selectedEventId;
         const countdownEvent = extendEventData(event, currentDay, actualStart, plannedStart, offset, mode, reportData);
-        const title = event.title.length ? event.title : ' '; // insert utf-8 empty space to avoid the line collapsing
+        const displayTitle = getPropertyValue(event, mainSource ?? 'title');
         return (
           <div
             key={event.id}
@@ -114,7 +114,7 @@ export default function CountdownSubscriptions({ subscribedEvents, goToEditMode 
             <div className='sub__binder' style={{ '--user-color': event.colour }} />
             <ScheduleTime event={countdownEvent} showExpected={showExpected} />
             <SubscriptionStatus event={countdownEvent} />
-            <div className={cx(['sub__title', !event.title && 'subdued'])}>{title}</div>
+            <div className={cx(['sub__title', !displayTitle && 'subdued'])}>{displayTitle}</div>
             {secondaryData && <div className='sub__secondary'>{secondaryData}</div>}
           </div>
         );

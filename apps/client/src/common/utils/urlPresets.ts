@@ -39,11 +39,13 @@ export function getRouteFromPreset(location: Path, urlPresets: URLPreset[]): str
   // NOTE: verify that this resolves correctly in cloud
   const currentPath = `${location.pathname}${location.search}`.substring(1);
   const currentURL = getCurrentPath(location);
-  const token = new URLSearchParams(location.search).get('token');
-  const isLocked = location.search.includes('n=1');
+  const locationParams = new URLSearchParams(location.search);
+  const token = locationParams.get('token');
 
   for (const preset of urlPresets) {
     if (!preset.enabled) continue;
+    const presetParams = new URLSearchParams(preset.search);
+    const isLocked = locationParams.get('n') === '1' || presetParams.get('n') === '1';
     /**
      * If the page is a known alias it would be like
      * /preset/{alias} <- locked to a preset
@@ -53,7 +55,9 @@ export function getRouteFromPreset(location: Path, urlPresets: URLPreset[]): str
      * we need to compare the saved preset to the current path to see if we need to redirect
      */
     if (preset.alias === currentURL || preset.target === currentURL) {
-      const newPath = generatePathFromPreset(preset.target, preset.search, preset.alias, isLocked, token);
+      const newPath = shouldMaskPresetPath(preset)
+        ? generateMaskedPathFromPreset(preset.alias, isLocked, token)
+        : generatePathFromPreset(preset.target, preset.search, preset.alias, isLocked, token);
       /**
        * if the current path is equivalent to the new path, we return null
        * this means we will not redirect
@@ -114,6 +118,30 @@ export function generatePathFromPreset(
   return `${path.pathname}?${searchParams}`.substring(1);
 }
 
+function generateMaskedPathFromPreset(alias: string, locked: boolean, token: string | null): string {
+  const searchParams = new URLSearchParams();
+
+  if (locked) {
+    searchParams.set('n', '1');
+  }
+
+  if (token) {
+    searchParams.set('token', token);
+  }
+
+  const path = `preset/${alias}`;
+  const search = searchParams.toString();
+  if (!search) {
+    return path;
+  }
+
+  return `${path}?${search}`;
+}
+
+function shouldMaskPresetPath(preset: URLPreset): boolean {
+  return preset.target === OntimeView.Cuesheet;
+}
+
 /**
  * Utility checks if two paths are equivalent
  * For preset paths, only compares the path (since params are stored in session)
@@ -123,16 +151,19 @@ export function arePathsEquivalent(currentPath: string, newPath: string): boolea
   const currentUrl = new URL(currentPath, document.location.origin);
   const newUrl = new URL(newPath, document.location.origin);
 
-  // For preset paths, only compare the path
-  if (currentUrl.pathname.startsWith('/preset/') || newUrl.pathname.startsWith('/preset/')) {
-    return currentUrl.pathname === newUrl.pathname;
-  }
-
-  // For regular paths, compare path and search params (ignoring token)
   if (currentUrl.pathname !== newUrl.pathname) {
     return false;
   }
 
+  // For preset paths, only n and token are meaningful — ignore everything else
+  if (currentUrl.pathname.startsWith('/preset/')) {
+    return (
+      currentUrl.searchParams.get('n') === newUrl.searchParams.get('n') &&
+      currentUrl.searchParams.get('token') === newUrl.searchParams.get('token')
+    );
+  }
+
+  // For regular paths, compare all search params except n and token
   currentUrl.searchParams.delete('token');
   currentUrl.searchParams.delete('n');
   newUrl.searchParams.delete('token');

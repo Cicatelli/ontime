@@ -8,27 +8,34 @@ export { sanitiseCue } from './src/cue-utils/cueUtils.js';
 export { getCueCandidate } from './src/cue-utils/cueUtils.js';
 export { generateId } from './src/generate-id/generateId.js';
 export {
+  addToRundown,
   getEventWithId,
   getFirstEvent,
   getFirstEventNormal,
   getFirstNormal,
+  getFirstGroupNormal,
+  getInsertAfterId,
   getLastEvent,
   getLastEventNormal,
   getLastNormal,
-  getNext,
+  getLastGroupNormal,
   getNextGroupNormal,
   getNextEvent,
   getNextEventNormal,
   getNextNormal,
-  getPrevious,
-  getPreviousEvent,
   getPreviousEventNormal,
   getPreviousNormal,
-  getPreviousGroup,
   getPreviousGroupNormal,
+  resolveInsertParent,
   swapEventData,
 } from './src/rundown-utils/rundownUtils.js';
 export { getFirstRundown } from './src/rundown/rundown.utils.js';
+export {
+  event as eventDef,
+  group as groupDef,
+  milestone as milestoneDef,
+} from './src/rundown-utils/entryDefinitions.js';
+export { createDelay, createEvent, createGroup, createMilestone, makeString } from './src/rundown-utils/entryUtils.js';
 
 // time format utils
 export {
@@ -62,7 +69,7 @@ export { deepmerge } from './src/externals/deepmerge.js';
 // array utils
 export { deleteAtIndex, insertAtIndex, mergeAtIndex, reorderArray } from './src/common/arrayUtils.js';
 // object utils
-export { getPropertyFromPath, isObjectEmpty } from './src/common/objectUtils.js';
+export { getPropertyFromPath, isObjectEmpty, withoutUndefinedValues, isValueOfEnum } from './src/common/objectUtils.js';
 
 // generic utilities
 export { getErrorMessage } from './src/generic/generic.js';

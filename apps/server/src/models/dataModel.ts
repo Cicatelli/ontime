@@ -25,7 +25,6 @@ const dbModel: DatabaseModel = {
   },
   settings: {
     version: ONTIME_VERSION,
-    serverPort: 4001,
     editorKey: null,
     operatorKey: null,
     timeFormat: '24',
@@ -41,7 +40,7 @@ const dbModel: DatabaseModel = {
   customFields: {},
   automation: {
     enabledAutomations: true,
-    enabledOscIn: true,
+    enabledOscIn: false,
     oscPortIn: 8888,
     triggers: [],
     automations: {},

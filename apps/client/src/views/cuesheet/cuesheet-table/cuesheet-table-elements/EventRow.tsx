@@ -27,6 +27,7 @@ interface EventRowProps {
   rowIndex: number;
   table: Table<ExtendedEntry<OntimeEntry>>;
   injectedStyles?: CSSProperties;
+  hasCursor?: boolean;
 }
 
 export default function EventRow({
@@ -44,6 +45,7 @@ export default function EventRow({
   rowIndex,
   table,
   injectedStyles,
+  hasCursor,
   ...virtuosoProps
 }: EventRowProps) {
   const { cuesheetMode, hideIndexColumn } = table.options.meta?.options ?? {
@@ -87,7 +89,9 @@ export default function EventRow({
         opacity: `${isPast ? '0.2' : '1'}`,
         '--user-bg': groupColour ?? 'transparent',
       }}
+      data-cursor={hasCursor}
       data-testid='cuesheet-event'
+      data-entry-id={id}
       {...virtuosoProps}
     >
       {cuesheetMode === AppMode.Edit && (
@@ -124,6 +128,8 @@ export default function EventRow({
               }}
               tabIndex={-1}
               role='cell'
+              data-testid={`cuesheet-cell-${cell.column.id}`}
+              data-column-id={cell.column.id}
             >
               {flexRender(cell.column.columnDef.cell, cell.getContext())}
             </td>

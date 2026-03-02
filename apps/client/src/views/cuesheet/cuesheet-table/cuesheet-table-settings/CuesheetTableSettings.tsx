@@ -1,21 +1,19 @@
-import { ReactNode, use } from 'react';
-import { IoChevronDown, IoOptions, IoSettingsOutline } from 'react-icons/io5';
+import { ReactNode } from 'react';
+import { IoBookOutline, IoChevronDown, IoOptions } from 'react-icons/io5';
 import { Popover } from '@base-ui/react/popover';
 import { Toggle } from '@base-ui/react/toggle';
 import { ToggleGroup } from '@base-ui/react/toggle-group';
 import { Toolbar } from '@base-ui/react/toolbar';
-import { useSessionStorage } from '@mantine/hooks';
 import type { Column } from '@tanstack/react-table';
 
 import Button from '../../../../common/components/buttons/Button';
 import Checkbox from '../../../../common/components/checkbox/Checkbox';
 import * as Editor from '../../../../common/components/editor-utils/EditorUtils';
 import PopoverContents from '../../../../common/components/popover/Popover';
-import { PresetContext } from '../../../../common/context/PresetContext';
 import type { ExtendedEntry } from '../../../../common/utils/rundownMetadata';
 import { cx } from '../../../../common/utils/styleUtils';
-import { AppMode, sessionKeys } from '../../../../ontimeConfig';
-import { usePersistedCuesheetOptions } from '../../cuesheet.options';
+import { AppMode } from '../../../../ontimeConfig';
+import { CuesheetOptions, usePersistedCuesheetOptions } from '../../cuesheet.options';
 import { useCuesheetPermissions } from '../../useTablePermissions';
 
 import CuesheetShareModal from './CuesheetShareModal';
@@ -24,6 +22,19 @@ import style from './CuesheetTableSettings.module.scss';
 
 interface CuesheetTableSettingsProps {
   columns: Column<ExtendedEntry, unknown>[];
+  cuesheetMode: AppMode;
+  setCuesheetMode: (mode: AppMode) => void;
+  handleResetResizing: () => void;
+  handleResetReordering: () => void;
+  handleClearToggles: () => void;
+}
+
+export interface ViewSettingsProps {
+  optionsStore: CuesheetOptions;
+}
+
+export interface ColumnSettingsProps {
+  columns: Column<ExtendedEntry, unknown>[];
   handleResetResizing: () => void;
   handleResetReordering: () => void;
   handleClearToggles: () => void;
@@ -31,17 +42,15 @@ interface CuesheetTableSettingsProps {
 
 export default function CuesheetTableSettings({
   columns,
+  cuesheetMode,
+  setCuesheetMode,
   handleResetResizing,
   handleResetReordering,
   handleClearToggles,
 }: CuesheetTableSettingsProps) {
+  const canChangeMode = useCuesheetPermissions((state) => state.canChangeMode);
   const canShare = useCuesheetPermissions((state) => state.canShare);
-  const preset = use(PresetContext);
-
-  const [cuesheetMode, setCuesheetMode] = useSessionStorage({
-    key: preset ? `${preset.alias}${sessionKeys.cuesheetMode}` : sessionKeys.cuesheetMode,
-    defaultValue: preset ? AppMode.Run : AppMode.Edit,
-  });
+  const options = usePersistedCuesheetOptions();
 
   const toggleCuesheetMode = (mode: AppMode[]) => {
     // we need to stop user from deselecting a mode
@@ -52,21 +61,27 @@ export default function CuesheetTableSettings({
 
   return (
     <Toolbar.Root className={style.tableSettings}>
-      <ViewSettings />
+      <ViewSettings optionsStore={options} />
       <ColumnSettings
         columns={columns}
         handleResetResizing={handleResetResizing}
         handleResetReordering={handleResetReordering}
         handleClearToggles={handleClearToggles}
       />
-      <ToggleGroup value={[cuesheetMode]} onValueChange={toggleCuesheetMode} className={cx([style.group, style.apart])}>
-        <Toolbar.Button render={<Toggle />} value={AppMode.Run} className={style.radioButton}>
-          Run
-        </Toolbar.Button>
-        <Toolbar.Button render={<Toggle />} value={AppMode.Edit} className={style.radioButton}>
-          Edit
-        </Toolbar.Button>
-      </ToggleGroup>
+      {canChangeMode && (
+        <ToggleGroup
+          value={[cuesheetMode]}
+          onValueChange={toggleCuesheetMode}
+          className={cx([style.group, style.apart])}
+        >
+          <Toolbar.Button render={<Toggle />} value={AppMode.Run} className={style.radioButton}>
+            Run
+          </Toolbar.Button>
+          <Toolbar.Button render={<Toggle />} value={AppMode.Edit} className={style.radioButton}>
+            Edit
+          </Toolbar.Button>
+        </ToggleGroup>
+      )}
 
       {canShare && (
         <>
@@ -78,8 +93,8 @@ export default function CuesheetTableSettings({
   );
 }
 
-function ViewSettings() {
-  const options = usePersistedCuesheetOptions();
+export function ViewSettings({ optionsStore }: ViewSettingsProps) {
+  const options = optionsStore;
 
   return (
     <Popover.Root>
@@ -88,7 +103,7 @@ function ViewSettings() {
           <Toolbar.Button
             render={
               <Button variant='ghosted-white'>
-                <IoSettingsOutline /> Settings
+                <IoOptions /> Settings
                 <IoChevronDown />
               </Button>
             }
@@ -137,12 +152,12 @@ function ViewSettings() {
   );
 }
 
-function ColumnSettings({
+export function ColumnSettings({
   columns,
   handleResetResizing,
   handleResetReordering,
   handleClearToggles,
-}: CuesheetTableSettingsProps) {
+}: ColumnSettingsProps) {
   return (
     <Popover.Root>
       <Popover.Trigger
@@ -150,7 +165,7 @@ function ColumnSettings({
           <Toolbar.Button
             render={
               <Button variant='ghosted-white'>
-                <IoOptions /> View
+                <IoBookOutline /> Columns
                 <IoChevronDown />
               </Button>
             }
@@ -171,7 +186,6 @@ function ColumnSettings({
             );
           })}
         </div>
-        <Editor.Separator orientation='vertical' />
         <div className={style.column}>
           <Editor.Label className={style.sectionTitle}>Reset Options</Editor.Label>
           <Button size='small' fluid onClick={handleClearToggles}>

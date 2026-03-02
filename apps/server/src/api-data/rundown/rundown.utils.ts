@@ -22,18 +22,15 @@ import {
   dayInMs,
   generateId,
   getCueCandidate,
+  createDelay,
+  createEvent,
+  createGroup,
+  createMilestone,
+  makeString,
   validateEndAction,
   validateTimerType,
   validateTimes,
 } from 'ontime-utils';
-
-import {
-  event as eventDef,
-  group as groupDef,
-  delay as delayDef,
-  milestone as milestoneDef,
-} from '../../models/eventsDefinition.js';
-import { makeString } from '../../utils/parserUtils.js';
 
 import { RundownMetadata } from './rundown.types.js';
 
@@ -61,7 +58,7 @@ export function generateEvent<
   const id = eventData.id || getUniqueId(rundown);
 
   if (isOntimeDelay(eventData)) {
-    return { ...delayDef, duration: eventData.duration ?? 0, id } as CompleteEntry<T>;
+    return createDelay({ duration: eventData.duration ?? 0, id }) as CompleteEntry<T>;
   }
 
   // TODO(v4): allow user to provide a larger patch of the group entry
@@ -196,74 +193,6 @@ export function applyPatchToEntry(eventFromRundown: OntimeEntry, patch: Partial<
 
   // only delay is left
   return { ...eventFromRundown, ...patch } as OntimeDelay;
-}
-
-/**
- * @description Enforces formatting for events
- * @param {object} eventArgs - attributes of event
- * @param {number} eventIndex - can be a string when we pass the a suggested cue name
- * @returns {object|null} - formatted object or null in case is invalid
- */
-export const createEvent = (eventArgs: Partial<OntimeEvent>, eventIndex: number | string): OntimeEvent | null => {
-  if (Object.keys(eventArgs).length === 0) {
-    return null;
-  }
-
-  const cue = typeof eventIndex === 'number' ? String(eventIndex + 1) : eventIndex;
-
-  const baseEvent = {
-    id: eventArgs?.id ?? generateId(),
-    cue,
-    ...eventDef,
-  };
-  const event = createEventPatch(baseEvent, eventArgs);
-  return event;
-};
-
-/**
- * Creates a new group from an optional patch
- */
-export function createGroup(patch?: Partial<OntimeGroup>): OntimeGroup {
-  if (!patch) {
-    return { ...groupDef, id: generateId() };
-  }
-
-  return {
-    id: patch.id ?? generateId(),
-    type: SupportedEntry.Group,
-    title: patch.title ?? '',
-    note: patch.note ?? '',
-    entries: patch.entries ?? [],
-    targetDuration: patch.targetDuration ?? null,
-    colour: makeString(patch.colour, ''),
-    custom: patch.custom ?? {},
-    revision: 0,
-    timeStart: null,
-    timeEnd: null,
-    duration: 0,
-    isFirstLinked: false,
-  };
-}
-
-/**
- * Creates a new milestone from an optional patch
- */
-export function createMilestone(patch?: Partial<OntimeMilestone>): OntimeMilestone {
-  if (!patch) {
-    return { ...milestoneDef, id: generateId() };
-  }
-
-  return {
-    id: patch.id ?? generateId(),
-    type: SupportedEntry.Milestone,
-    cue: patch.cue ?? '',
-    title: patch.title ?? '',
-    note: patch.note ?? '',
-    colour: makeString(patch.colour, ''),
-    custom: patch.custom ?? {},
-    parent: patch.parent ?? null,
-    revision: 0,
-  };
 }
 
 /**
@@ -481,31 +410,6 @@ export function calculateDayOffset(
   }
 
   return 0;
-}
-
-/**
- * Receives an insertion order and returns the reference to an event ID
- * after which we will insert the new event
- */
-export function getInsertAfterId(
-  rundown: Rundown,
-  parent: OntimeGroup | null,
-  afterId?: EntryId,
-  beforeId?: EntryId,
-): EntryId | null {
-  if (afterId) return afterId;
-  if (!beforeId) return null;
-
-  /**
-   * At this point we know we want to insert before a given ID
-   * We need to check which list we should use to insert and find the event there
-   */
-  const insertionList = parent ? parent.entries : rundown.order;
-  if (!insertionList || insertionList.length === 0) return null;
-
-  const atIndex = insertionList.findIndex((id) => id === beforeId);
-  if (atIndex < 1) return null;
-  return insertionList[atIndex - 1];
 }
 
 /**

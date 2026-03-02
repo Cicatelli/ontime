@@ -121,7 +121,8 @@ test.describe('Sharing from cuesheet', () => {
     await page.goto('http://localhost:4001/editor');
 
     // we create some elements to test with
-    await page.getByRole('button', { name: 'Clear all' }).click();
+    await page.getByRole('button', { name: 'Rundown menu' }).click();
+    await page.getByRole('menuitem', { name: 'Clear all' }).click();
     await page.getByRole('button', { name: 'Delete all' }).click();
     await page.getByRole('button', { name: 'Create Event' }).click();
     await page.getByTestId('entry-1').getByTestId('entry__title').click();
@@ -131,14 +132,16 @@ test.describe('Sharing from cuesheet', () => {
     await page.close();
   });
 
-  test('Sharing a link with readonly permissions', async ({ page }) => {
+  test('Sharing a link with readonly permissions', async ({ page }, testInfo) => {
+    const alias = `cuesheet-read-test-${testInfo.retry}-${Date.now()}`;
+
     await page.goto('http://localhost:4001/cuesheet');
     await expect(page.getByTestId('cuesheet')).toBeVisible();
 
     await page.getByRole('button', { name: 'Share...' }).click();
 
     // configure share for readonly
-    await page.getByRole('textbox').fill('cuesheet-read-test');
+    await page.locator('input[name="alias"]').fill(alias);
     await page.getByText('Custom write').click();
     await page.getByText('Custom read').click();
     await page.getByTestId('lockNav').click();
@@ -150,9 +153,16 @@ test.describe('Sharing from cuesheet', () => {
     await page.getByTestId('write-duration').click();
     await page.getByTestId('write-note').click();
 
+    // disable any custom write permissions if they exist
+    const customWriteSwitches = page.locator('[data-testid^="write-custom-"]');
+    const customWriteSwitchCount = await customWriteSwitches.count();
+    for (let i = 0; i < customWriteSwitchCount; i++) {
+      await customWriteSwitches.nth(i).click();
+    }
+
     // create and verify link
     await page.getByRole('button', { name: 'Create share link' }).click();
-    await expect(page.getByTestId('copy-link')).toContainText('preset/cuesheet-read-test');
+    await expect(page.getByTestId('copy-link')).toContainText(`preset/${alias}`);
     await expect(page.getByTestId('copy-link')).toContainText('n=1');
 
     // verify the preset
@@ -164,8 +174,9 @@ test.describe('Sharing from cuesheet', () => {
     await expect(page.getByTestId('navigation__toggle-settings')).toBeHidden();
     await expect(page.getByRole('button', { name: 'Share...' })).toBeHidden();
 
-    // check that we are locked and cannot edit
-    await page.getByRole('button', { name: 'Edit' }).click();
+    // mode toggle should not be rendered for readonly users
+    await expect(page.getByRole('button', { name: 'Edit' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Run' })).toHaveCount(0);
 
     // Verify that the title is visible but not editable
     await expect(page.getByTestId('cuesheet-event').getByText('title 1')).toBeVisible();
@@ -175,14 +186,16 @@ test.describe('Sharing from cuesheet', () => {
     await expect(page.getByRole('cell', { name: 'Duration' })).toBeVisible();
   });
 
-  test('Sharing a link with scoped read-write permissions', async ({ page }) => {
+  test('Sharing a link with scoped read-write permissions', async ({ page }, testInfo) => {
+    const alias = `cuesheet-scope-test-${testInfo.retry}-${Date.now()}`;
+
     await page.goto('http://localhost:4001/cuesheet');
     await expect(page.getByTestId('cuesheet')).toBeVisible();
 
     await page.getByRole('button', { name: 'Share...' }).click();
 
     // configure share for readonly
-    await page.getByRole('textbox').fill('cuesheet-scope-test');
+    await page.locator('input[name="alias"]').fill(alias);
     await page.getByText('Custom write').click();
     await page.getByText('Custom read').click();
     await page.getByTestId('lockNav').click();
@@ -201,7 +214,7 @@ test.describe('Sharing from cuesheet', () => {
 
     // create and verify link
     await page.getByRole('button', { name: 'Create share link' }).click();
-    await expect(page.getByTestId('copy-link')).toContainText('preset/cuesheet-scope-test');
+    await expect(page.getByTestId('copy-link')).toContainText(`preset/${alias}`);
     await expect(page.getByTestId('copy-link')).toContainText('n=1');
 
     // verify the preset
@@ -218,6 +231,9 @@ test.describe('Sharing from cuesheet', () => {
 
     // Verify that the title is visible and editable
     await expect(page.getByTestId('cuesheet-event').getByRole('cell', { name: 'title' })).toBeVisible();
+    const titleEditor = page.getByTestId('cuesheet-event').getByTestId('cuesheet-editor-title');
+    await titleEditor.click();
+    await expect(titleEditor).toBeEditable();
 
     // other elements are not there
     await expect(page.getByRole('cell', { name: 'Duration' })).toBeHidden();

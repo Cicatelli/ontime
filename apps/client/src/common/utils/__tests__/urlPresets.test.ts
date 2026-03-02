@@ -82,6 +82,57 @@ describe('getRouteFromPreset()', () => {
       expect(getRouteFromPreset(location, presets)).toBe('timer?user=guest&alias=demopage&n=1&token=123');
     });
   });
+
+  describe('cuesheet presets', () => {
+    const cuesheetPreset: URLPreset[] = [
+      {
+        enabled: true,
+        alias: 'cuesheet-4685d6',
+        target: OntimeView.Cuesheet,
+        search: '',
+        options: {
+          read: 'full',
+          write: '-',
+        },
+      },
+    ];
+    const cuesheetPresetWithoutOptions: URLPreset[] = [
+      {
+        enabled: true,
+        alias: 'cuesheet-basic',
+        target: OntimeView.Cuesheet,
+        search: '',
+      },
+    ];
+    const cuesheetPresetWithNavLock: URLPreset[] = [
+      {
+        enabled: true,
+        alias: 'cuesheet-locked',
+        target: OntimeView.Cuesheet,
+        search: 'n=1',
+      },
+    ];
+
+    it('keeps cuesheet aliases masked when permissions are stored in preset options', () => {
+      const location = resolvePath('/cuesheet-4685d6');
+      expect(getRouteFromPreset(location, cuesheetPreset)).toBe('preset/cuesheet-4685d6');
+    });
+
+    it('preserves feature params when redirecting masked cuesheet aliases', () => {
+      const location = resolvePath('/cuesheet-4685d6?n=1&token=123');
+      expect(getRouteFromPreset(location, cuesheetPreset)).toBe('preset/cuesheet-4685d6?n=1&token=123');
+    });
+
+    it('keeps cuesheet aliases masked even when preset options are absent', () => {
+      const location = resolvePath('/cuesheet-basic');
+      expect(getRouteFromPreset(location, cuesheetPresetWithoutOptions)).toBe('preset/cuesheet-basic');
+    });
+
+    it('applies navigation lock from preset search params when alias is opened', () => {
+      const location = resolvePath('/cuesheet-locked');
+      expect(getRouteFromPreset(location, cuesheetPresetWithNavLock)).toBe('preset/cuesheet-locked?n=1');
+    });
+  });
 });
 
 describe('generatePathFromPreset()', () => {
@@ -113,6 +164,14 @@ describe('arePathsEquivalent()', () => {
 
   it('checks whether we are in a locked preset', () => {
     expect(arePathsEquivalent('preset/minimal', 'preset/minimal?test=b')).toBeTruthy();
+  });
+
+  it('distinguishes preset paths with different lock or token params', () => {
+    expect(arePathsEquivalent('preset/minimal', 'preset/minimal?n=1')).toBeFalsy();
+    expect(arePathsEquivalent('preset/minimal?n=1', 'preset/minimal?n=1')).toBeTruthy();
+    expect(arePathsEquivalent('preset/minimal', 'preset/minimal?token=abc')).toBeFalsy();
+    expect(arePathsEquivalent('preset/minimal?n=1&token=abc', 'preset/minimal?n=1')).toBeFalsy();
+    expect(arePathsEquivalent('preset/minimal?n=1&token=abc', 'preset/minimal?n=1&token=abc')).toBeTruthy();
   });
 
   it('considers edge cases for the url sharing feature', () => {

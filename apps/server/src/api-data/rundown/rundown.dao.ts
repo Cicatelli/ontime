@@ -26,7 +26,7 @@ import {
   Rundown,
   InsertOptions,
 } from 'ontime-types';
-import { customFieldLabelToKey, insertAtIndex } from 'ontime-utils';
+import { addToRundown, customFieldLabelToKey, getInsertAfterId, insertAtIndex, createGroup } from 'ontime-utils';
 
 import { getDataProvider } from '../../classes/data-provider/DataProvider.js';
 import { consoleError } from '../../utils/console.js';
@@ -35,10 +35,8 @@ import type { RundownMetadata } from './rundown.types.js';
 import {
   applyPatchToEntry,
   cloneSimpleRundownEntry,
-  createGroup,
   deleteById,
   doesInvalidateMetadata,
-  getInsertAfterId,
   getUniqueId,
   makeDeepClone,
 } from './rundown.utils.js';
@@ -110,11 +108,6 @@ export function createTransaction(options: TransactionOptions): Transaction {
   function commit(shouldProcess: boolean = true) {
     // if the rundown is mutable we persist the changes
     if (options.mutableRundown) {
-      // schedule a database update
-      setImmediate(async () => {
-        await getDataProvider().setRundown(cachedRundown.id, cachedRundown);
-      });
-
       // update fields which are agnostic of whether the rundown is processed
       cachedRundown.revision = cachedRundown.revision + 1;
       cachedRundown.title = rundown.title;
@@ -135,16 +128,17 @@ export function createTransaction(options: TransactionOptions): Transaction {
         cachedRundown.flatOrder = metadata.flatEntryOrder;
         rundownMetadata = metadata;
       }
+
+      // persist after all mutations are applied
+      getDataProvider().setRundown(cachedRundown.id, cachedRundown);
     }
 
     // if the customFields are mutable we persist the changes
     if (options.mutableCustomFields) {
-      // schedule a database update
-      setImmediate(async () => {
-        await getDataProvider().setCustomFields(projectCustomFields);
-      });
-
       projectCustomFields = customFields;
+
+      // persist after reassignment
+      getDataProvider().setCustomFields(projectCustomFields);
     }
 
     return {
@@ -161,50 +155,6 @@ export function createTransaction(options: TransactionOptions): Transaction {
     rundownMetadata,
     commit,
   };
-}
-
-/**
- * Add entry to rundown, handles the following cases:
- * - 1a. add entry in group, after a given entry
- * - 1b. add entry in group, at the beginning
- * - 2a. add entry to the rundown, after a given entry
- * - 2b. add entry to the rundown, at the beginning
- */
-function add(rundown: Rundown, entry: OntimeEntry, afterId: EntryId | null, parent: OntimeGroup | null): OntimeEntry {
-  if (parent) {
-    // 1. inserting an entry inside a group
-
-    if ('parent' in entry) {
-      entry.parent = parent.id;
-    }
-
-    if (afterId) {
-      const atEventsIndex = parent.entries.indexOf(afterId) + 1;
-      const atFlatIndex = rundown.flatOrder.indexOf(afterId) + 1;
-      parent.entries = insertAtIndex(atEventsIndex, entry.id, parent.entries);
-      rundown.flatOrder = insertAtIndex(atFlatIndex, entry.id, rundown.flatOrder);
-    } else {
-      parent.entries = insertAtIndex(0, entry.id, parent.entries);
-      const atFlatIndex = rundown.flatOrder.indexOf(parent.id) + 1;
-      rundown.flatOrder = insertAtIndex(atFlatIndex, entry.id, rundown.flatOrder);
-    }
-  } else {
-    // 2. inserting an entry at top level
-    if (afterId) {
-      const atOrderIndex = rundown.order.indexOf(afterId) + 1;
-      const atFlatIndex = rundown.flatOrder.indexOf(afterId) + 1;
-      rundown.order = insertAtIndex(atOrderIndex, entry.id, rundown.order);
-      rundown.flatOrder = insertAtIndex(atFlatIndex, entry.id, rundown.flatOrder);
-    } else {
-      rundown.order = insertAtIndex(0, entry.id, rundown.order);
-      rundown.flatOrder = insertAtIndex(0, entry.id, rundown.flatOrder);
-    }
-  }
-
-  // either way, we insert the entry into the rundown
-  rundown.entries[entry.id] = entry;
-
-  return entry;
 }
 
 /**
@@ -516,7 +466,7 @@ function clone(rundown: Rundown, entry: OntimeEntry, options?: InsertOptions): O
       after = entry.id;
     }
 
-    return add(rundown, clonedEntry, after, parent);
+    return addToRundown(rundown, clonedEntry, after, parent);
   }
 }
 
@@ -583,7 +533,7 @@ function ungroup(rundown: Rundown, group: OntimeGroup) {
 }
 
 export const rundownMutation = {
-  add,
+  add: addToRundown,
   edit,
   remove,
   removeAll,
@@ -598,10 +548,8 @@ export const rundownMutation = {
 /**
  * Exposes a way to update a rundown which is not active
  */
-export function updateBackgroundRundown(rundownId: string, rundown: Rundown) {
-  setImmediate(async () => {
-    await getDataProvider().setRundown(rundownId, rundown);
-  });
+export async function updateBackgroundRundown(rundownId: string, rundown: Rundown) {
+  await getDataProvider().setRundown(rundownId, rundown);
 }
 
 /**
@@ -698,9 +646,7 @@ export function init(initialRundown: Readonly<Rundown>, initialCustomFields: Rea
   rundownMetadata = metadata;
 
   // defer writing to the database
-  setImmediate(async () => {
-    await getDataProvider().setRundown(cachedRundown.id, cachedRundown);
-  });
+  getDataProvider().setRundown(cachedRundown.id, cachedRundown);
 
   return { rundown, rundownMetadata, customFields, revision: rundown.revision };
 }
