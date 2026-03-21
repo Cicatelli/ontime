@@ -14,26 +14,26 @@
  * Payload: adds necessary payload for the request to be completed
  */
 
+import type { Server } from 'http';
+
 import {
   Client,
   LogOrigin,
-  WsPacketToClient,
-  WsPacketToServer,
+  MaybeNumber,
   MessageTag,
   RefetchKey,
-  MaybeNumber,
+  WsPacketToClient,
+  WsPacketToServer,
 } from 'ontime-types';
-
+import { generateId } from 'ontime-utils';
 import { WebSocket, WebSocketServer } from 'ws';
-import type { Server } from 'http';
 
+import { dispatchFromAdapter } from '../api-integration/integration.controller.js';
+import { logger } from '../classes/Logger.js';
+import { authenticateSocket } from '../middleware/authenticate.js';
+import { eventStore } from '../stores/EventStore.js';
 import getRandomName from '../utils/getRandomName.js';
 import type { IAdapter } from './IAdapter.js';
-import { eventStore } from '../stores/EventStore.js';
-import { logger } from '../classes/Logger.js';
-import { dispatchFromAdapter } from '../api-integration/integration.controller.js';
-import { generateId } from 'ontime-utils';
-import { authenticateSocket } from '../middleware/authenticate.js';
 
 type ClientId = string;
 let instance: SocketServer | null = null;
@@ -235,8 +235,25 @@ class SocketServer implements IAdapter {
     }
   }
 
-  shutdown() {
-    this.wss?.close();
+  shutdown(): Promise<void> {
+    const wss = this.wss;
+    if (!wss) {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+      // Notify clients first so they can reconnect gracefully
+      for (const client of wss.clients) {
+        if (client.readyState === WebSocket.OPEN || client.readyState === WebSocket.CONNECTING) {
+          client.close(1001, 'Server shutting down');
+        }
+      }
+
+      wss.close(() => {
+        this.wss = null;
+        resolve();
+      });
+    });
   }
 }
 
