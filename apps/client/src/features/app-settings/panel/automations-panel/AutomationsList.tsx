@@ -6,6 +6,7 @@ import { deleteAutomation } from '../../../../common/api/automation';
 import { maybeAxiosError } from '../../../../common/api/utils';
 import Button from '../../../../common/components/buttons/Button';
 import IconButton from '../../../../common/components/buttons/IconButton';
+import Info from '../../../../common/components/info/Info';
 import Tag from '../../../../common/components/tag/Tag';
 import useAutomationSettings from '../../../../common/hooks-query/useAutomationSettings';
 import * as Panel from '../../panel-utils/PanelUtils';
@@ -20,10 +21,11 @@ const automationPlaceholder: AutomationDTO = {
 
 interface AutomationsListProps {
   automations: NormalisedAutomation;
+  enabledAutomations?: boolean;
 }
 
 export default function AutomationsList(props: AutomationsListProps) {
-  const { automations } = props;
+  const { automations, enabledAutomations } = props;
   const { refetch } = useAutomationSettings();
   const [automationFormData, setAutomationFormData] = useState<AutomationDTO | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -55,6 +57,13 @@ export default function AutomationsList(props: AutomationsListProps) {
       </Panel.SubHeader>
 
       <Panel.Divider />
+
+      {enabledAutomations === false && (
+        <Info>
+          Automations are disabled. You can still manage automation definitions here, but they will not run until
+          enabled.
+        </Info>
+      )}
 
       {automationFormData !== null && (
         <AutomationForm automation={automationFormData} onClose={() => setAutomationFormData(null)} />
