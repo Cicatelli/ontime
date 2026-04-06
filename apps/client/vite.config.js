@@ -4,7 +4,6 @@ import { sentryVitePlugin } from '@sentry/vite-plugin';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { compression } from 'vite-plugin-compression2';
-import prismjsPlugin from 'vite-plugin-prismjs-plus';
 import svgrPlugin from 'vite-plugin-svgr';
 
 import { ONTIME_VERSION } from './src/ONTIME_VERSION';
@@ -48,11 +47,6 @@ export default defineConfig({
     compression({
       algorithm: 'brotliCompress',
       exclude: /\.(html)$/, // Ontime cloud: Exclude HTML files from compression so we can change the base property at runtime
-    }),
-    prismjsPlugin({
-      manual: true,
-      languages: ['css'],
-      css: true,
     }),
   ],
   server: {
@@ -99,9 +93,6 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
-  },
-  esbuild: {
-    legalComments: 'none',
   },
   css: {
     preprocessorOptions: {

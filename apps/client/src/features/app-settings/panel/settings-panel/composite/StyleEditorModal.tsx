@@ -51,11 +51,11 @@ export default function CodeEditorModal({ isOpen, onClose }: CodeEditorModalProp
 
   const clear = () => setDraftCss('');
 
+  // Load the latest CSS from the server whenever the modal opens, and ignore stale responses on close.
   useEffect(() => {
     let isCancelled = false;
 
     async function fetchServerCSS() {
-      // check for isOpen to fetch recent css
       if (isOpen) {
         try {
           setError(null);
@@ -91,17 +91,16 @@ export default function CodeEditorModal({ isOpen, onClose }: CodeEditorModalProp
   return (
     <Modal
       title='Edit CSS override'
+      size='wide'
       isOpen={isOpen}
       onClose={onClose}
       showCloseButton
       showBackdrop
       bodyElements={
         <div className={style.editorBody}>
-          {!isLoadingCss && (
-            <Suspense fallback={<Panel.Loader isLoading />}>
-              <CodeEditor value={draftCss} onChange={setDraftCss} language='css' />
-            </Suspense>
-          )}
+          <Suspense fallback={<Panel.Loader isLoading />}>
+            <CodeEditor value={draftCss} onChange={setDraftCss} />
+          </Suspense>
           <Panel.Loader isLoading={isLoadingCss} />
         </div>
       }
