@@ -1,6 +1,6 @@
 {
   "name": "ontime",
-  "version": "4.8.0",
+  "version": "4.9.0",
   "description": "Time keeping for live events",
   "keywords": [
     "ontime",
@@ -17,7 +17,7 @@
   "license": "AGPL-3.0-only",
   "engines": {
     "node": "~22",
-    "pnpm": "~10"
+    "pnpm": "~11"
   },
   "type": "module",
   "scripts": {
@@ -32,16 +32,16 @@
     "dist-win": "turbo run dist-win --filter=ontime-electron",
     "dist-mac": "turbo run dist-mac --filter=ontime-electron",
     "dist-linux": "turbo run dist-linux --filter=ontime-electron",
-    "e2e": "turbo run build --filter=ontime-ui && pnpm clear-temp && cross-env DEBUG=pw:webserver npx playwright test -c playwright.config.ts",
-    "e2e:ui": "cross-env NODE_ENV=development cross-env DEBUG=pw:webserver npx playwright test --ui -c playwright.config.ts",
-    "e2e:i": "npx playwright codegen",
+    "e2e": "turbo run build --filter=ontime-ui && pnpm clear-temp && cross-env DEBUG=pw:webserver pnpm playwright test -c playwright.config.ts",
+    "e2e:ui": "cross-env NODE_ENV=development cross-env DEBUG=pw:webserver pnpm playwright test --ui -c playwright.config.ts",
+    "e2e:i": "pnpm playwright codegen",
     "clear-temp": "rimraf e2e/tests/fixtures/tmp",
     "test": "turbo run test:pipeline",
     "format": "oxfmt",
     "format:check": "oxfmt --check"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2",
+    "@playwright/test": "1.60.0",
     "@types/node": "catalog:",
     "cross-env": "^7.0.3",
     "oxfmt": "^0.42.0",
@@ -51,5 +51,11 @@
     "turbo": "2.8.20",
     "typescript": "catalog:"
   },
-  "packageManager": "pnpm@10.33.0+sha512.10568bb4a6afb58c9eb3630da90cc9516417abebd3fabbe6739f0ae795728da1491e9db5a544c76ad8eb7570f5c4bb3d6c637b2cb41bfdcdb47fa823c8649319"
+  "packageManager": "pnpm@11.1.2+sha512.415a1cc25974731e75455c1468371be74c5aa5fb7621b50d4056d222451609f11412f23fd602e6169f1e060466641f798597e1be961a10688836a67b16569499",
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "22.22.2"
+    }
+  }
 }
