@@ -8,6 +8,7 @@ import {
   IoChevronUp,
   IoDuplicateOutline,
   IoFolderOpenOutline,
+  IoLockClosed,
   IoReorderTwo,
   IoTrash,
 } from 'react-icons/io5';
@@ -17,7 +18,7 @@ import Tag from '../../../common/components/tag/Tag';
 import { useEntryActionsContext } from '../../../common/context/EntryActionsContext';
 import { useContextMenu } from '../../../common/hooks/useContextMenu';
 import { useEntryCopy } from '../../../common/stores/entryCopyStore';
-import { deviceMod } from '../../../common/utils/deviceUtils';
+import { deviceAlt, deviceMod } from '../../../common/utils/deviceUtils';
 import { getOffsetState } from '../../../common/utils/offset';
 import { cx, getAccessibleColour } from '../../../common/utils/styleUtils';
 import { formatDuration, formatTime } from '../../../common/utils/time';
@@ -65,7 +66,7 @@ export default function RundownGroup({ data, hasCursor, collapsed, onCollapse }:
       type: 'item',
       label: 'Delete Group',
       icon: IoTrash,
-      shortcut: `${deviceMod}+Del`,
+      shortcut: `${deviceAlt}+Backspace`,
       onClick: () => deleteEntry([data.id]),
     },
   ]);
@@ -176,14 +177,17 @@ export default function RundownGroup({ data, hasCursor, collapsed, onCollapse }:
           </div>
           <div className={style.metaEntry}>
             <div className={style.metaLabel}>Duration</div>
-            {planOffset === null ? (
-              <div>{formatDuration(data.duration)}</div>
-            ) : (
-              <div className={cx([planOffsetLabel && style[planOffsetLabel]])}>
-                <span className={style.strike}>{formatDuration(data.duration)}</span>
-                <Tag className={style.offsetLabel}>{planOffset}</Tag>
-              </div>
-            )}
+            <div className={style.duration}>
+              {planOffset === null ? (
+                formatDuration(data.duration)
+              ) : (
+                <span className={cx([planOffsetLabel && style[planOffsetLabel]])}>
+                  <span className={style.strike}>{formatDuration(data.duration)}</span>
+                  <Tag className={style.offsetLabel}>{planOffset}</Tag>
+                </span>
+              )}
+              {data.targetDuration !== null && <IoLockClosed className={style.lockIcon} />}
+            </div>
           </div>
         </div>
       </div>

@@ -13,6 +13,8 @@ import { socket } from './adapters/WebsocketAdapter.js';
 // Import Routers
 import { appRouter } from './api-data/index.js';
 import { integrationRouter } from './api-integration/integration.router.js';
+import { makeMcpAuthenticate } from './api-mcp/mcp.auth.js';
+import { mcpRouter } from './api-mcp/mcp.router.js';
 import { flushPendingWrites, getDataProvider } from './classes/data-provider/DataProvider.js';
 // Services
 import { logger } from './classes/Logger.js';
@@ -100,6 +102,7 @@ app.get(`${prefix}/ready`, (_req, res) => {
 app.use(`${prefix}/login`, loginRouter); // router for login flow
 app.use(`${prefix}/data`, authenticate, appRouter); // router for application data
 app.use(`${prefix}/api`, authenticate, integrationRouter); // router for integrations
+app.use(`${prefix}/mcp`, makeMcpAuthenticate(authenticate), mcpRouter); // router for MCP agent integration
 
 // serve static external files
 app.use(
@@ -114,8 +117,9 @@ app.use(`${prefix}/external`, (req, res) => {
 app.use(`${prefix}/user`, express.static(publicDir.userDir, { etag: false, lastModified: true }));
 
 // Serve legacy timer for old browsers that don't support modern JS
+// dotfiles must be allowed since the install path can contain dot directories (eg AppImage mounts in /tmp/.mount_*)
 app.get(`${prefix}/timer-legacy`, authenticateAndRedirect, (_req, res) => {
-  res.sendFile(srcFiles.timerLegacy);
+  res.sendFile(srcFiles.timerLegacy, { dotfiles: 'allow' });
 });
 
 // Base route for static files

@@ -18,6 +18,7 @@ export const langPt: TranslationObject = {
   'common.no_data': 'Sem dados',
   'countdown.ended': 'Evento encerrado às',
   'countdown.running': 'Evento em andamento',
+  'countdown.group_running': 'Evento em grupo em andamento',
   'countdown.loaded': 'Evento carregado', //TODO: check translation
   'countdown.select_event': 'Selecione um evento para acompanhar',
   'countdown.to_start': 'Tempo para iniciar',
@@ -28,6 +29,7 @@ export const langPt: TranslationObject = {
   'timeline.done': 'Concluído',
   'timeline.due': 'Pendente',
   'timeline.followedby': 'Seguido por',
+  'timeline.standby': 'Em espera',
   'project.title': 'Título',
   'project.description': 'Descrição',
   'project.info': 'Informações do projeto',

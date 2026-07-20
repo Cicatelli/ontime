@@ -1,7 +1,15 @@
 import type { Request, Response, Router } from 'express';
 import express from 'express';
 import { matchedData } from 'express-validator';
-import { ErrorResponse, OntimeEntry, ProjectRundownsList, RenumberCues, Rundown } from 'ontime-types';
+import {
+  ErrorResponse,
+  OntimeEntry,
+  ProjectRundowns,
+  ProjectRundownsList,
+  RenumberCues,
+  Rundown,
+  RundownImportPayload,
+} from 'ontime-types';
 import { getErrorMessage } from 'ontime-utils';
 
 import { getDataProvider } from '../../classes/data-provider/DataProvider.js';
@@ -12,19 +20,23 @@ import {
   applyDelay,
   batchEditEntries,
   cloneEntry,
+  applyImportToRundown,
   createNewRundown,
+  createRundownFromImport,
   deleteAllEntries,
   deleteEntries,
+  deleteRundown,
+  duplicateExistingRundown,
   editEntry,
   groupEntries,
-  initRundown,
   loadRundown,
+  renameRundown,
   renumberEntries,
   reorderEntry,
   swapEvents,
   ungroupEntries,
 } from './rundown.service.js';
-import { duplicateRundown, normalisedToRundownArray } from './rundown.utils.js';
+import { normalisedToRundownArray } from './rundown.utils.js';
 import {
   clonePostValidator,
   entryBatchPutValidator,
@@ -34,6 +46,8 @@ import {
   entryReorderValidator,
   entrySwapValidator,
   rundownArrayOfIds,
+  rundownImportValidator,
+  rundownPatchValidator,
   rundownPostValidator,
 } from './rundown.validation.js';
 
@@ -44,7 +58,7 @@ export const router: Router = express.Router();
 /**
  * Returns all rundowns in the project
  */
-router.get('/', async (_req: Request, res: Response<ProjectRundownsList>) => {
+router.get('/', (_req: Request, res: Response<ProjectRundownsList>) => {
   const projectRundowns = getDataProvider().getProjectRundowns();
   res.json({ loaded: getCurrentRundown().id, rundowns: normalisedToRundownArray(projectRundowns) });
 });
@@ -52,7 +66,7 @@ router.get('/', async (_req: Request, res: Response<ProjectRundownsList>) => {
 /**
  * Returns the current rundown
  */
-router.get('/current', async (_req: Request, res: Response<Rundown>) => {
+router.get('/current', (_req: Request, res: Response<Rundown>) => {
   const rundown = getCurrentRundown();
   res.json(rundown);
 });
@@ -60,7 +74,7 @@ router.get('/current', async (_req: Request, res: Response<Rundown>) => {
 /**
  * Returns a given rundown in its normalised client shape
  */
-router.get('/:id', paramsWithId, async (req: Request, res: Response<Rundown | ErrorResponse>) => {
+router.get('/:id', paramsWithId, (req: Request, res: Response<Rundown | ErrorResponse>) => {
   try {
     const rundown = getProcessedRundown(req.params.id);
     res.json(rundown);
@@ -104,13 +118,7 @@ router.post(
   paramsWithId,
   async (req: Request, res: Response<ProjectRundownsList | ErrorResponse>) => {
     try {
-      const dataProvider = getDataProvider();
-      const rundown = dataProvider.getRundown(req.params.id);
-
-      const duplicatedRundown: Rundown = duplicateRundown(rundown, `Copy of ${rundown.title}`);
-      await dataProvider.setRundown(duplicatedRundown.id, duplicatedRundown);
-
-      const projectRundowns = getDataProvider().getProjectRundowns();
+      const projectRundowns = await duplicateExistingRundown(req.params.id);
       res.status(201).json({ loaded: getCurrentRundown().id, rundowns: normalisedToRundownArray(projectRundowns) });
     } catch (error) {
       const message = getErrorMessage(error);
@@ -123,27 +131,27 @@ router.post(
  * Patches the data of an existing rundown
  * Currently only the title can be changed
  */
-router.patch('/:id', paramsWithId, async (req: Request, res: Response<ProjectRundownsList | ErrorResponse>) => {
-  try {
-    const dataProvider = getDataProvider();
-    const rundown = dataProvider.getRundown(req.params.id);
-    if (!rundown) throw new Error(`Rundown with ID ${req.params.id} not found`);
-    if (!req.body.title) throw new Error('No title provided');
-
-    await dataProvider.setRundown(rundown.id, { ...rundown, title: req.body.title });
-
-    /**
-     * If loaded we re-init the rundown
-     * This is likely over-kill but the simplest way to ensure state consistency
-     */
-    if (req.params.id === getCurrentRundown().id) {
-      const rundown = dataProvider.getRundown(req.params.id);
-      const customField = dataProvider.getCustomFields();
-      await initRundown(rundown, customField);
+router.patch(
+  '/:id',
+  rundownPatchValidator,
+  async (req: Request, res: Response<ProjectRundownsList | ErrorResponse>) => {
+    try {
+      const projectRundowns = await renameRundown(req.params.id, req.body.title);
+      res.status(200).json({ loaded: getCurrentRundown().id, rundowns: normalisedToRundownArray(projectRundowns) });
+    } catch (error) {
+      const message = getErrorMessage(error);
+      res.status(400).send({ message });
     }
+  },
+);
 
-    const projectRundowns = getDataProvider().getProjectRundowns();
-    res.status(201).json({ loaded: getCurrentRundown().id, rundowns: normalisedToRundownArray(projectRundowns) });
+/**
+ * Deletes a rundown if not loaded
+ */
+router.delete('/:id', paramsWithId, async (req: Request, res: Response<ProjectRundownsList | ErrorResponse>) => {
+  try {
+    const newProjectRundowns = await deleteRundown(req.params.id);
+    res.status(200).json({ loaded: getCurrentRundown().id, rundowns: normalisedToRundownArray(newProjectRundowns) });
   } catch (error) {
     const message = getErrorMessage(error);
     res.status(400).send({ message });
@@ -151,32 +159,37 @@ router.patch('/:id', paramsWithId, async (req: Request, res: Response<ProjectRun
 });
 
 /**
- * Deletes a rundown if not loaded
+ * Applies an imported rundown: override or merge into an existing rundown, or create a new one.
  */
-router.delete('/:id', paramsWithId, async (req: Request, res: Response<ProjectRundownsList | ErrorResponse>) => {
-  try {
-    if (req.params.id === getCurrentRundown().id) {
-      res.status(400).send({ message: 'Cannot delete loaded rundown' });
-      return;
+router.post(
+  '/import',
+  rundownImportValidator,
+  async (req: Request, res: Response<ProjectRundownsList | ErrorResponse>) => {
+    try {
+      const { mode, targetRundownId, rundown, customFields, providedFields } = matchedData<RundownImportPayload>(req);
+      let projectRundowns: ProjectRundowns;
+      if (mode === 'new') {
+        projectRundowns = await createRundownFromImport(rundown, customFields);
+      } else {
+        // the validator guarantees this for override/merge, the guard narrows the type and adds defence in depth
+        if (!targetRundownId) {
+          throw new Error('targetRundownId is required when mode is override or merge');
+        }
+        projectRundowns = await applyImportToRundown(
+          mode,
+          targetRundownId,
+          rundown,
+          customFields,
+          providedFields ?? { event: [], custom: [] },
+        );
+      }
+      res.status(200).json({ loaded: getCurrentRundown().id, rundowns: normalisedToRundownArray(projectRundowns) });
+    } catch (error) {
+      const message = getErrorMessage(error);
+      res.status(400).send({ message });
     }
-
-    const dataProvider = getDataProvider();
-    const projectRundowns = dataProvider.getProjectRundowns();
-
-    if (Object.keys(projectRundowns).length <= 1) {
-      // might never hit this as it is likely covered by the case of trying to delete the loaded rundown
-      res.status(400).send({ message: 'Cannot delete the last rundown' });
-      return;
-    }
-
-    await dataProvider.deleteRundown(req.params.id);
-    const newProjectRundowns = getDataProvider().getProjectRundowns();
-    res.status(200).json({ loaded: getCurrentRundown().id, rundowns: normalisedToRundownArray(newProjectRundowns) });
-  } catch (error) {
-    const message = getErrorMessage(error);
-    res.status(400).send({ message });
-  }
-});
+  },
+);
 
 // #endregion operations on project rundowns ======================
 

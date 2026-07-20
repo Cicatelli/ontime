@@ -38,7 +38,12 @@ export function handleLinks(
   event?.preventDefault();
 
   const destination = new URL(externalServerUrl);
-  destination.pathname = externalBaseURI ? `${externalBaseURI}/${location}` : location;
+  // split off any query string so it is not encoded into the pathname
+  const [pathname, search] = location.split('?');
+  destination.pathname = externalBaseURI ? `${externalBaseURI}/${pathname}` : pathname;
+  if (search) {
+    destination.search = search;
+  }
   openLink(destination.toString());
 }
 
@@ -54,4 +59,18 @@ export function linkToOtherHost(
     destination.pathname = externalBaseURI ? `${externalBaseURI}/${path}` : path;
   }
   return destination.toString();
+}
+
+/**
+ * Builds a base URL for reaching the Ontime server on a given network interface.
+ * The Ontime server itself only speaks HTTP, so we only keep https when the page
+ * already reaches the server over TLS on that same port (eg. a proxy in front of it);
+ * any other explicit server port gets http.
+ * externalServerUrl is used for testing
+ */
+export function hostToBaseUrl(host: string, port: number, externalServerUrl: string = serverURL): string {
+  const page = new URL(externalServerUrl);
+  const pagePort = page.port === '' ? (page.protocol === 'https:' ? 443 : 80) : Number(page.port);
+  const scheme = page.protocol === 'https:' && pagePort === port ? 'https' : 'http';
+  return `${scheme}://${host}:${port}`;
 }

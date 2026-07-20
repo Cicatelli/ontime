@@ -1,6 +1,6 @@
 {
   "name": "ontime",
-  "version": "4.9.0",
+  "version": "4.11.0",
   "description": "Time keeping for live events",
   "keywords": [
     "ontime",
@@ -55,7 +55,7 @@
   "devEngines": {
     "runtime": {
       "name": "node",
-      "version": "22.22.2"
+      "version": "22.22.3"
     }
   }
 }

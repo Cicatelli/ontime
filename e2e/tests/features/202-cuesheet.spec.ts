@@ -30,6 +30,8 @@ test('cuesheet datagrid does not submit timer cells on tab-out or escape', async
 
   // re-enter edit mode: original value should be unchanged
   await durationCell.click();
+  // tabbing selects the next input field so we have to click twice to first leave input field and then select
+  await durationCell.click();
   await expect(durationCell.locator('input')).toHaveValue(originalDuration);
   await durationCell.locator('input').press('Escape');
 
@@ -99,4 +101,28 @@ test('cuesheet datagrid keeps keyboard focus flow while editing text cells', asy
   await cueEditor.press('Escape');
   await expect(cueEditor).not.toBeFocused();
   await expect(cueEditor).toHaveValue(cueBeforeCancel);
+});
+
+test('cuesheet background edit from empty state', async ({ page }) => {
+  // create an empty rundown
+  await page.goto('/editor');
+  await page.getByRole('button', { name: 'Toggle settings' }).click();
+  await page.getByRole('button', { name: 'Manage rundowns' }).click();
+  await page.getByRole('button', { name: 'New' }).nth(1).click();
+  const emptyName = `empty-${Date.now()}`;
+  await page.getByRole('textbox', { name: 'Rundown title' }).fill(emptyName);
+  await page.getByRole('button', { name: 'Create rundown' }).click();
+
+  // edit it in the cuesheet
+  await page.getByRole('row', { name: '0 empty-' }).getByTestId('rundown_menu').click();
+  await page.getByText('Edit in cuesheet').click();
+
+  // expect to see and empty screen
+  await expect(page.getByRole('button', { name: 'Create Event' })).toBeVisible();
+
+  // create 1 event
+  await page.getByRole('button', { name: 'Create Event' }).click();
+
+  // and expect to find it
+  await expect(page.getByTestId('cuesheet-event')).toBeVisible();
 });

@@ -37,6 +37,16 @@ describe('getRouteFromPreset()', () => {
       alias: 'demopage',
       target: OntimeView.Timer,
       search: 'user=guest',
+      displayInNav: false,
+      options: {},
+    },
+  ];
+  const disabledPresets: URLPreset[] = [
+    {
+      enabled: false,
+      alias: 'demopage',
+      target: OntimeView.Timer,
+      search: 'user=guest',
       options: {},
     },
   ];
@@ -45,6 +55,16 @@ describe('getRouteFromPreset()', () => {
     // we make the current location be the alias
     const location = resolvePath('demopage');
     expect(getRouteFromPreset(location, presets)).toStrictEqual('timer?user=guest&alias=demopage');
+  });
+
+  it('checks if the current location matches an enabled preset target', () => {
+    const location = resolvePath('/timer');
+    expect(getRouteFromPreset(location, presets)).toStrictEqual('timer?user=guest&alias=demopage');
+  });
+
+  it('does not redirect disabled presets', () => {
+    const location = resolvePath('/demopage');
+    expect(getRouteFromPreset(location, disabledPresets)).toBeNull();
   });
 
   it('returns null when already on a preset path', () => {
@@ -86,6 +106,11 @@ describe('getRouteFromPreset()', () => {
       const location = resolvePath('/demopage?n=1&token=123');
       expect(getRouteFromPreset(location, presets)).toBe('timer?user=guest&alias=demopage&n=1&token=123');
     });
+
+    it('redirects stale unwrapped params back to the saved preset params while preserving feature params', () => {
+      const location = resolvePath('/timer?user=admin&alias=demopage&n=1&token=123');
+      expect(getRouteFromPreset(location, presets)).toBe('timer?user=guest&alias=demopage&n=1&token=123');
+    });
   });
 
   describe('cuesheet presets', () => {
@@ -95,6 +120,7 @@ describe('getRouteFromPreset()', () => {
         alias: 'cuesheet-4685d6',
         target: OntimeView.Cuesheet,
         search: '',
+        displayInNav: false,
         options: {
           read: 'full',
           write: '-',
@@ -107,6 +133,7 @@ describe('getRouteFromPreset()', () => {
         alias: 'cuesheet-basic',
         target: OntimeView.Cuesheet,
         search: '',
+        displayInNav: false,
       },
     ];
     const cuesheetPresetWithNavLock: URLPreset[] = [
@@ -115,6 +142,7 @@ describe('getRouteFromPreset()', () => {
         alias: 'cuesheet-locked',
         target: OntimeView.Cuesheet,
         search: 'n=1',
+        displayInNav: false,
       },
     ];
 
@@ -196,6 +224,7 @@ describe('generateUrlPresetOptions', () => {
         target: 'timer',
         search: 'param1=value1&param2=value2',
         enabled: true,
+        displayInNav: false,
       },
     ],
     [
@@ -207,6 +236,7 @@ describe('generateUrlPresetOptions', () => {
         target: 'timer',
         search: 'param1=value1&param2=value2',
         enabled: true,
+        displayInNav: false,
       },
     ],
     [
@@ -218,6 +248,7 @@ describe('generateUrlPresetOptions', () => {
         target: 'timer',
         search: 'param1=value1&param2=value2',
         enabled: true,
+        displayInNav: false,
       },
     ],
     [
@@ -229,6 +260,7 @@ describe('generateUrlPresetOptions', () => {
         target: 'timer',
         search: 'param1=value1&param2=value2',
         enabled: true,
+        displayInNav: false,
       },
     ],
   ])('should generate URL preset options for %s', (_description, alias, url, expected) => {

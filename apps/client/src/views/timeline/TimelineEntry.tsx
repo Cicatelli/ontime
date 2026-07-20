@@ -1,8 +1,8 @@
 import { Day } from 'ontime-types';
 import { CSSProperties, RefObject } from 'react';
 
+import { useAnimatedProgress } from '../../common/hooks/useAnimatedProgress';
 import { useExpectedStartData, useTimer } from '../../common/hooks/useSocket';
-import { getProgress } from '../../common/utils/getProgress';
 import { alpha, cx } from '../../common/utils/styleUtils';
 import { formatDuration, formatTime, getExpectedTimesFromExtendedEvent } from '../../common/utils/time';
 import { useTranslation } from '../../translation/TranslationProvider';
@@ -26,6 +26,7 @@ interface TimelineEntryProps {
   title: string;
   width: number;
   cue: string;
+  groupColour?: string;
   ref?: RefObject<HTMLDivElement | null>;
 }
 
@@ -48,6 +49,7 @@ export function TimelineEntry({
   title,
   width,
   cue,
+  groupColour,
   ref,
 }: TimelineEntryProps) {
   const formattedStartTime = formatTime(start, formatOptions);
@@ -67,6 +69,7 @@ export function TimelineEntry({
         {
           '--color': colour,
           '--lighter': lighterColour ?? '',
+          '--group-colour': groupColour ?? 'transparent',
           left: `${left}px`,
           width: `${width}px`,
         } as CSSProperties
@@ -74,6 +77,7 @@ export function TimelineEntry({
       data-testid={cue}
     >
       {status === 'live' ? <ActiveBlock /> : <div data-status={status} className={style.timelineBlock} />}
+      <div className={style.groupBand} />
       <div
         className={cx([style.content, width < 20 && style.hide, !hasLink && style.separeLeft])}
         data-status={status}
@@ -153,6 +157,8 @@ function TimelineEntryStatus({
     statusText = getLocalizedString('timeline.live');
   } else if (statusText === 'pending') {
     statusText = getLocalizedString('timeline.due');
+  } else if (statusText === 'done') {
+    statusText = getLocalizedString('timeline.done');
   }
 
   const isDue = status === 'future' && timeToStart <= 0;
@@ -163,7 +169,7 @@ function TimelineEntryStatus({
 /** Generates a block level progress bar */
 function ActiveBlock() {
   const { current, duration } = useTimer();
-  const progress = getProgress(current, duration);
+  const progress = useAnimatedProgress(current, duration);
   return (
     <div data-status='live' className={style.timelineBlock} style={{ '--progress': `${progress}%` } as CSSProperties} />
   );

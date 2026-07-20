@@ -83,7 +83,7 @@ export type OntimeActionKey =
   | OntimeMessageSet
   | OntimeMessageSecondary;
 
-export const ontimeActionKeyValues = [
+export const ontimeActionKeyValues: string[] = [
   ...ontimeAuxTriggerAction,
   ...ontimePlaybackAction,
   ...ontimeAuxSetAction,
@@ -111,9 +111,9 @@ export type OntimeAction =
       text?: string;
       visible?: boolean;
     }
-  // TODO: when setting a secondary source of type secondary we could specify a value to it
   | {
       type: 'ontime';
       action: OntimeMessageSecondary;
-      secondarySource: SecondarySource;
+      secondarySource?: SecondarySource;
+      text?: string;
     };
