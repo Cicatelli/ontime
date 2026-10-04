@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures/override';
 
 const aliasName = 'testing';
 const aliasUrl =
@@ -44,7 +44,7 @@ test.describe('URL Preset', () => {
       .filter({ hasText: /^testingApply$/ })
       .getByRole('button')
       .click();
-    await expect(page.getByRole('button', { name: 'Applied' })).toBeVisible();
+    await expect(page.getByText('Current')).toBeVisible();
 
     // 2. the URL contains the preset
     expect(page.url().includes('hideTimerSeconds=true')).toBeTruthy();
@@ -119,6 +119,7 @@ test.describe('Sharing from cuesheet', () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.goto('/editor');
+    await page.getByRole('button', { name: 'Edit' }).click();
 
     // we create some elements to test with
     await page.getByRole('button', { name: 'Rundown menu' }).click();

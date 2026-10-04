@@ -2,17 +2,16 @@ import { Popover } from '@base-ui/react/popover';
 import { Toggle } from '@base-ui/react/toggle';
 import { ToggleGroup } from '@base-ui/react/toggle-group';
 import { Toolbar } from '@base-ui/react/toolbar';
-import type { Column } from '@tanstack/react-table';
 import { ReactNode } from 'react';
-import { IoBookOutline, IoChevronDown, IoOptions } from 'react-icons/io5';
+import { IoChevronDown, IoOptions } from 'react-icons/io5';
 
 import Button from '../../../../common/components/buttons/Button';
 import Checkbox from '../../../../common/components/checkbox/Checkbox';
 import * as Editor from '../../../../common/components/editor-utils/EditorUtils';
 import PopoverContents from '../../../../common/components/popover/Popover';
-import type { ExtendedEntry } from '../../../../common/utils/rundownMetadata';
 import { AppMode } from '../../../../ontimeConfig';
 import { useCuesheetPermissions } from '../../useTablePermissions';
+import type { CuesheetColumn } from '../cuesheetTable.features';
 import CuesheetShareModal from './CuesheetShareModal';
 
 import style from './CuesheetTableSettings.module.scss';
@@ -37,7 +36,7 @@ type TableModeControls = {
 };
 
 interface CuesheetTableHeaderToolbarProps {
-  columns: Column<ExtendedEntry, unknown>[];
+  columns: CuesheetColumn[];
   optionsStore: TableHeaderOptionsStore;
   handleResetResizing: () => void;
   handleResetReordering: () => void;
@@ -70,12 +69,13 @@ export default function CuesheetTableHeaderToolbar({
 
   return (
     <Toolbar.Root className={style.tableSettings} data-background-rundown={isBackground}>
-      <ViewSettings optionsStore={optionsStore} />
-      <ColumnSettings
+      <TableSettings
         columns={columns}
+        optionsStore={optionsStore}
         handleResetResizing={handleResetResizing}
         handleResetReordering={handleResetReordering}
         handleClearToggles={handleClearToggles}
+        showShare={showShare && canShare}
       />
       {modeControls && canChangeMode && (
         <div className={style.apart}>
@@ -95,37 +95,43 @@ export default function CuesheetTableHeaderToolbar({
           </ToggleGroup>
         </div>
       )}
-
       {showShare && canShare && (
-        <>
+        <div className={style.shareToolbar}>
           <Editor.Separator orientation='vertical' />
-          <CuesheetShareModal />
-        </>
+          <CuesheetShareModal inToolbar />
+        </div>
       )}
     </Toolbar.Root>
   );
 }
 
-interface ViewSettingsProps {
+interface TableSettingsProps {
+  columns: CuesheetColumn[];
   optionsStore: TableHeaderOptionsStore;
-}
-
-interface ColumnSettingsProps {
-  columns: Column<ExtendedEntry, unknown>[];
   handleResetResizing: () => void;
   handleResetReordering: () => void;
   handleClearToggles: () => void;
+  showShare: boolean;
 }
 
-function ViewSettings({ optionsStore }: ViewSettingsProps) {
+/** Single entry point for view and column options, it also holds sharing on small screens to keep the toolbar short */
+function TableSettings({
+  columns,
+  optionsStore,
+  handleResetResizing,
+  handleResetReordering,
+  handleClearToggles,
+  showShare,
+}: TableSettingsProps) {
   return (
     <Popover.Root>
       <Popover.Trigger
         render={
           <Toolbar.Button
             render={
-              <Button variant='ghosted-white'>
-                <IoOptions /> Settings
+              <Button variant='ghosted-white' aria-label='Table options'>
+                <IoOptions />
+                <span className={style.optionsLabel}>Options</span>
                 <IoChevronDown />
               </Button>
             }
@@ -169,32 +175,7 @@ function ViewSettings({ optionsStore }: ViewSettingsProps) {
             Hide delay entries
           </Editor.Label>
         </div>
-      </PopoverContents>
-    </Popover.Root>
-  );
-}
 
-function ColumnSettings({
-  columns,
-  handleResetResizing,
-  handleResetReordering,
-  handleClearToggles,
-}: ColumnSettingsProps) {
-  return (
-    <Popover.Root>
-      <Popover.Trigger
-        render={
-          <Toolbar.Button
-            render={
-              <Button variant='ghosted-white'>
-                <IoBookOutline /> Columns
-                <IoChevronDown />
-              </Button>
-            }
-          />
-        }
-      />
-      <PopoverContents align='start' className={style.inline}>
         <div className={style.column}>
           <Editor.Label className={style.sectionTitle}>Column visibility</Editor.Label>
           {columns.map((column) => {
@@ -203,12 +184,13 @@ function ColumnSettings({
 
             return (
               <Editor.Label key={`${column.id}-${visible}`} className={style.option}>
-                <Checkbox defaultChecked={visible} onCheckedChange={column.toggleVisibility} />
+                <Checkbox defaultChecked={visible} onCheckedChange={(checked) => column.toggleVisibility(checked)} />
                 {columnHeader as ReactNode}
               </Editor.Label>
             );
           })}
         </div>
+
         <div className={style.column}>
           <Editor.Label className={style.sectionTitle}>Reset Options</Editor.Label>
           <Button size='small' fluid onClick={handleClearToggles}>
@@ -220,6 +202,12 @@ function ColumnSettings({
           <Button size='small' fluid onClick={handleResetReordering}>
             Reset Reordering
           </Button>
+          {showShare && (
+            <div className={style.shareMenu}>
+              <Editor.Separator orientation='horizontal' />
+              <CuesheetShareModal />
+            </div>
+          )}
         </div>
       </PopoverContents>
     </Popover.Root>

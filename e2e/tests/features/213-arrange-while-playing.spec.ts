@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../fixtures/override';
 
 test('Rearrange while playing', async ({ page }) => {
   await page.goto('/rundown');
@@ -28,7 +28,7 @@ test('Rearrange while playing', async ({ page }) => {
     .press('Alt+Control+ArrowUp');
 
   // event CUE1 should new be entry 2
-  await expect(page.getByTestId('entry-2').getByTestId('rundown-event')).toContainText('1');
+  await expect(page.getByTestId('entry-2').getByTestId('rundown-event').getByText('1', { exact: true })).toBeVisible();
   // but entry 1 should be the one playing (it will be unlinked as it will be the first event)
   await expect(page.getByTestId('entry-1').getByTestId('rundown-event')).toHaveAttribute('data-running');
 });

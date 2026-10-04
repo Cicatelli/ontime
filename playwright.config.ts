@@ -1,7 +1,28 @@
+import { join } from 'node:path';
+
 import type { PlaywrightTestConfig } from '@playwright/test';
 import { devices } from '@playwright/test';
 
 const isDevMode = process.env.NODE_ENV === 'development';
+
+/**
+ * A second server protected with a password, used by the password spec
+ * it has its own port and data folder so it does not share state with the main server
+ * it serves the built client, which the dev mode flow does not otherwise build
+ */
+const passwordServer = {
+  command: isDevMode
+    ? 'pnpm --filter ontime-ui build && pnpm --filter ontime-server dev'
+    : 'pnpm --filter ontime-server dev',
+  port: 4002,
+  reuseExistingServer: true,
+  timeout: 60 * 1000,
+  env: {
+    PORT: '4002',
+    SESSION_PASSWORD: 'e2e-password',
+    ONTIME_DATA: join(import.meta.dirname, 'e2e/tests/fixtures/tmp/password-server'),
+  },
+};
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -17,19 +38,22 @@ const config: PlaywrightTestConfig = {
   retries: process.env.CI ? 2 : 0,
   workers: 1,
   reporter: 'html',
-  webServer: isDevMode
-    ? {
-        command: 'turbo run dev',
-        port: 3000,
-        reuseExistingServer: true,
-        timeout: 60 * 1000,
-      }
-    : {
-        command: 'turbo run dev --filter=ontime-server',
-        port: 4001,
-        reuseExistingServer: true,
-        timeout: 60 * 1000,
-      },
+  webServer: [
+    isDevMode
+      ? {
+          command: 'turbo run dev',
+          port: 3000,
+          reuseExistingServer: true,
+          timeout: 60 * 1000,
+        }
+      : {
+          command: 'turbo run dev --filter=ontime-server',
+          port: 4001,
+          reuseExistingServer: true,
+          timeout: 60 * 1000,
+        },
+    passwordServer,
+  ],
   use: {
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -47,14 +71,6 @@ const config: PlaywrightTestConfig = {
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-      },
-    },
-
-    {
-      name: 'webkit',
-      testMatch: /.*.spec.mac.ts/,
-      use: {
-        ...devices['Desktop Safari'],
       },
     },
   ],

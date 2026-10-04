@@ -1,5 +1,5 @@
 import { useTableNav } from '@table-nav/react';
-import { ColumnDef, Table, getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { useTable } from '@tanstack/react-table';
 import { OntimeEntry, SupportedEntry, TimeField, isOntimeDelay, isOntimeGroup, isOntimeMilestone } from 'ontime-types';
 import { ComponentProps, ReactNode, memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
@@ -11,14 +11,16 @@ import {
   TableVirtuosoHandle,
 } from 'react-virtuoso';
 
-import EmptyPage from '../../../common/components/state/EmptyPage';
-import EmptyTableBody from '../../../common/components/state/EmptyTableBody';
+import EmptyFill from '../../../common/components/state/EmptyFill';
+import EmptyRundown from '../../../common/components/state/EmptyRundown';
 import { useEntryActionsContext } from '../../../common/context/EntryActionsContext';
-import type { RundownSource } from '../../../common/hooks-query/useScopedRundown';
+import { useRundownScope } from '../../../common/context/RundownScopeContext';
+import { useFlatRundownWithMetadata, useScopedSelectedEventId } from '../../../common/hooks-query/useRundown';
 import type { ExtendedEntry } from '../../../common/utils/rundownMetadata';
 import { usePersistedRundownOptions } from '../../../features/rundown/rundown.options';
 import { useEventSelection } from '../../../features/rundown/useEventSelection';
 import { AppMode } from '../../../ontimeConfig';
+import { useTranslation } from '../../../translation/TranslationProvider';
 import { usePersistedCuesheetOptions } from '../cuesheet.options';
 import { useCuesheetPermissions } from '../useTablePermissions';
 import { CuesheetHeader, SortableCuesheetHeader } from './cuesheet-table-elements/CuesheetHeader';
@@ -28,27 +30,29 @@ import GroupRow from './cuesheet-table-elements/GroupRow';
 import MilestoneRow from './cuesheet-table-elements/MilestoneRow';
 import TableMenu from './cuesheet-table-menu/TableMenu';
 import CuesheetTableHeaderToolbar from './cuesheet-table-settings/CuesheetTableHeaderToolbar';
+import {
+  CuesheetColumnDef,
+  CuesheetTable as CuesheetTableInstance,
+  cuesheetTableFeatures,
+} from './cuesheetTable.features';
 import { useColumnOrder, useColumnSizes, useColumnVisibility } from './useColumnManager';
 
 import style from './CuesheetTable.module.scss';
 
 type CuesheetTableBaseProps = {
-  columns: ColumnDef<ExtendedEntry>[];
+  columns: CuesheetColumnDef[];
   cuesheetMode: AppMode;
-  source: RundownSource;
   insertElement?: ReactNode;
 };
 
 type EditorCuesheetTableProps = CuesheetTableBaseProps & {
   tableRoot: 'editor';
   setCuesheetMode?: undefined;
-  isCurrentRundown?: undefined;
 };
 
 type ViewCuesheetTableProps = CuesheetTableBaseProps & {
   tableRoot: 'cuesheet';
   setCuesheetMode: (mode: AppMode) => void;
-  isCurrentRundown?: boolean;
 };
 
 type CuesheetTableProps = EditorCuesheetTableProps | ViewCuesheetTableProps;
@@ -56,21 +60,21 @@ type CuesheetTableProps = EditorCuesheetTableProps | ViewCuesheetTableProps;
 export default function CuesheetTable({
   columns,
   cuesheetMode,
-  source,
   tableRoot,
   setCuesheetMode,
-  isCurrentRundown,
   insertElement,
 }: CuesheetTableProps) {
-  const { flatRundown, status, selectedEventId } = source;
+  const { isLoaded: isCurrentRundown } = useRundownScope();
+  const { data: flatRundown, status } = useFlatRundownWithMetadata();
+  const selectedEventId = useScopedSelectedEventId();
   const { updateEntry, updateTimer, addEntry } = useEntryActionsContext();
+  const { getLocalizedString } = useTranslation();
   const canCreateEntries = useCuesheetPermissions((state) => state.canCreateEntries) && cuesheetMode === AppMode.Edit;
 
   const useOptions = tableRoot === 'editor' ? usePersistedRundownOptions : usePersistedCuesheetOptions;
   const optionsStore = useOptions();
   const { showDelayedTimes, hideTableSeconds, hideIndexColumn } = optionsStore;
 
-  const cursor = useEventSelection((state) => state.cursor);
   const setScrollHandler = useEventSelection((state) => state.setScrollHandler);
 
   const virtuosoRef = useRef<TableVirtuosoHandle | null>(null);
@@ -118,7 +122,8 @@ export default function CuesheetTable({
   const { columnSizing, setColumnSizing } = useColumnSizes(tableRoot);
   const { columnVisibility, setColumnVisibility } = useColumnVisibility(tableRoot);
 
-  const table = useReactTable({
+  const table = useTable({
+    features: cuesheetTableFeatures,
     data: flatRundown,
     columns,
     columnResizeMode: 'onChange',
@@ -129,7 +134,6 @@ export default function CuesheetTable({
     },
     onColumnVisibilityChange: setColumnVisibility,
     onColumnSizingChange: setColumnSizing,
-    getCoreRowModel: getCoreRowModel(),
     meta,
   });
 
@@ -193,28 +197,24 @@ export default function CuesheetTable({
     return colSizes;
     // eslint-disable-next-line react-compiler/react-compiler -- unfortunately this is what we need
     // eslint-disable-next-line react-hooks/exhaustive-deps -- this works well and follows documentation
-  }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
+  }, [columns, table.state.columnResizing, table.state.columnSizing]);
 
   const allLeafColumns = table.getAllLeafColumns();
   const { rows } = table.getRowModel();
   const virtuosoContext = useMemo(
     () => ({
       columnSizeVars,
-      cursor,
       listeners,
       rows,
       table,
-      handleAddNew: canCreateEntries ? (type: SupportedEntry) => addEntry({ type }) : undefined,
     }),
-    [columnSizeVars, cursor, listeners, rows, table, addEntry, canCreateEntries],
+    [columnSizeVars, listeners, rows, table],
   );
 
   const computeItemKey = useCallback((_: number, item: ExtendedEntry) => item.id, []);
   const fixedHeaderContent = useCallback(() => {
     return table.getHeaderGroups().map((headerGroup) => {
-      const HeaderComponent = table.getState().columnSizingInfo.isResizingColumn
-        ? CuesheetHeader
-        : SortableCuesheetHeader;
+      const HeaderComponent = table.state.columnResizing.isResizingColumn ? CuesheetHeader : SortableCuesheetHeader;
 
       // if the table is being resized, we render non-sortable headers to avoid performance issues
       return (
@@ -228,10 +228,13 @@ export default function CuesheetTable({
     });
   }, [cuesheetMode, hideIndexColumn, table]);
 
-  const isLoading = !flatRundown || status === 'pending';
+  // avoid showing the editable empty state before we know whether the rundown is actually empty
+  if (status === 'pending') {
+    return <EmptyFill text='Loading…' className={style.tableLoading} />;
+  }
 
-  if (isLoading) {
-    return <EmptyPage text='Loading...' />;
+  if (status === 'error') {
+    return <EmptyFill text={getLocalizedString('common.no_data')} className={style.tableLoading} />;
   }
 
   return (
@@ -254,16 +257,23 @@ export default function CuesheetTable({
         }
         showShare={tableRoot === 'cuesheet'}
       />
-      <TableVirtuoso
-        ref={virtuosoRef}
-        data={flatRundown}
-        context={virtuosoContext}
-        style={tableRoot === 'editor' ? { paddingLeft: '1rem' } : undefined}
-        computeItemKey={computeItemKey}
-        increaseViewportBy={{ top: 100, bottom: 200 }}
-        components={virtuosoComponents}
-        fixedHeaderContent={fixedHeaderContent}
-      />
+      {flatRundown.length === 0 ? (
+        <EmptyRundown
+          handleAddNew={canCreateEntries ? (type: SupportedEntry) => addEntry({ type }) : undefined}
+          className={style.tableLoading}
+        />
+      ) : (
+        <TableVirtuoso
+          ref={virtuosoRef}
+          data={flatRundown}
+          context={virtuosoContext}
+          style={tableRoot === 'editor' ? { paddingLeft: '1rem' } : undefined}
+          computeItemKey={computeItemKey}
+          increaseViewportBy={{ top: 100, bottom: 200 }}
+          components={virtuosoComponents}
+          fixedHeaderContent={fixedHeaderContent}
+        />
+      )}
 
       <TableMenu />
     </>
@@ -272,18 +282,10 @@ export default function CuesheetTable({
 
 interface CuesheetVirtuosoContext {
   columnSizeVars: { [key: string]: number };
-  cursor: string | null;
   listeners: ReturnType<typeof useTableNav>['listeners'];
-  rows: ReturnType<Table<ExtendedEntry>['getRowModel']>['rows'];
-  table: Table<ExtendedEntry>;
-  handleAddNew?: (type: SupportedEntry) => void;
+  rows: ReturnType<CuesheetTableInstance['getRowModel']>['rows'];
+  table: CuesheetTableInstance;
 }
-
-const EmptyPlaceholder = memo(function EmptyPlaceholder({
-  context,
-}: TableProps & ContextProp<CuesheetVirtuosoContext>) {
-  return <EmptyTableBody handleAddNew={context.handleAddNew} />;
-});
 
 const CuesheetTableElement = memo(function CuesheetTableElement({
   style: injectedStyles,
@@ -318,13 +320,13 @@ const CuesheetTableRow = memo(function CuesheetTableRow({
   // eslint-disable-next-line react/destructuring-assignment
   const rowIndex = virtuosoProps['data-index'];
   const row = context.rows[rowIndex];
+  const hasCursor = useEventSelection((state) => state.cursor === row?.original.id);
   if (!row) {
     return null;
   }
 
   const key = row.original.id;
   const entry = row.original;
-  const hasCursor = entry.id === context.cursor;
 
   if (isOntimeGroup(entry)) {
     return (
@@ -397,7 +399,6 @@ const CuesheetTableRow = memo(function CuesheetTableRow({
 });
 
 const virtuosoComponents: TableComponents<ExtendedEntry, CuesheetVirtuosoContext> = {
-  EmptyPlaceholder,
   Table: CuesheetTableElement,
   TableHead: CuesheetTableHead,
   TableRow: CuesheetTableRow,

@@ -1,6 +1,7 @@
 import { body } from 'express-validator';
+import { sanitiseAuxTimerNames } from 'ontime-utils';
 
-import { requestValidationFunction } from '../validation-utils/validationFunction.js';
+import { requestValidationFunction } from '../../middleware/validation.js';
 
 /**
  * @description Validates object for POST /ontime/settings/welcomedialog
@@ -27,6 +28,7 @@ export const validateSettings = [
   pinValidator('operatorKey'),
   body('timeFormat').isString().isIn(['12', '24']).withMessage('Time format can only be "12" or "24"'),
   body('language').isString().trim().notEmpty(),
+  body('auxTimerNames').isArray().withMessage('auxTimerNames must be an array').customSanitizer(sanitiseAuxTimerNames),
 
   requestValidationFunction,
 ];

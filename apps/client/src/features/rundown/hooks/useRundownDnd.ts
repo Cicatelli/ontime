@@ -1,10 +1,31 @@
-import { DragEndEvent, DragOverEvent, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import {
+  type Active,
+  type Data,
+  DragEndEvent,
+  DragOverEvent,
+  DragStartEvent,
+  type Over,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
 import { type EntryId, type Rundown, SupportedEntry, isOntimeGroup } from 'ontime-types';
 import { reorderArray } from 'ontime-utils';
-import { Dispatch, SetStateAction, useCallback, useMemo, useRef } from 'react';
+import { Dispatch, SetStateAction, useCallback, useMemo, useRef, useState } from 'react';
 
-import type { useEntryActions } from '../../../common/hooks/useEntryAction';
+import type { EntryActions } from '../../../common/hooks/useEntryAction';
 import { canDrop } from '../rundown.utils';
+
+type Placement = 'before' | 'after';
+
+interface DropTarget {
+  id: EntryId;
+  placement: Placement;
+}
+
+function getPlacement(fromIndex: number, toIndex: number): Placement {
+  return fromIndex < toIndex ? 'after' : 'before';
+}
 
 interface UseRundownDndOptions {
   entries: Rundown['entries'];
@@ -12,7 +33,7 @@ interface UseRundownDndOptions {
   setSortableData: Dispatch<SetStateAction<EntryId[]>>;
   getIsCollapsed: (groupId: EntryId) => boolean;
   handleCollapseGroup: (collapsed: boolean, groupId: EntryId | undefined) => void;
-  entryActions: ReturnType<typeof useEntryActions>;
+  entryActions: EntryActions;
 }
 
 export function useRundownDnd({
@@ -27,126 +48,174 @@ export function useRundownDnd({
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 10 } }));
   const isDraggingRef = useRef(false);
 
-  /**
-   * On drag end, we reorder the events
-   */
+  // dnd-kit clears active data when its virtualized source unmounts.
+  const activeDataRef = useRef<Data | null>(null);
+  const [activeId, setActiveId] = useState<EntryId | null>(null);
+  const [isValidDrop, setIsValidDrop] = useState(true);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+
+  // Restore the source group's original expanded state after the drag.
+  const forceCollapsedGroupRef = useRef<EntryId | null>(null);
+
+  const getActiveData = useCallback((active: Active): Data | null => {
+    return active.data.current?.sortable ? active.data.current : activeDataRef.current;
+  }, []);
+
+  const canDropOver = useCallback(
+    (active: Active, activeData: Data | null, over: Over | null): boolean => {
+      if (!activeData?.sortable || !over?.data.current) {
+        return true;
+      }
+
+      if (activeData.type !== SupportedEntry.Group) {
+        return true;
+      }
+
+      // a group cannot be dropped inside itself
+      if (over.data.current.parent === active.id || over.id === `end-${active.id}`) {
+        return false;
+      }
+
+      const placement = getPlacement(activeData.sortable.index, over.data.current.sortable.index);
+      return canDrop(over.data.current.type, over.data.current.parent, placement, getIsCollapsed(over.id as EntryId));
+    },
+    [getIsCollapsed],
+  );
+
+  const endDrag = useCallback(() => {
+    isDraggingRef.current = false;
+    activeDataRef.current = null;
+    setActiveId(null);
+    setIsValidDrop(true);
+    setDropTarget(null);
+
+    const forceCollapsedGroup = forceCollapsedGroupRef.current;
+    forceCollapsedGroupRef.current = null;
+    if (forceCollapsedGroup) {
+      handleCollapseGroup(false, forceCollapsedGroup);
+    }
+  }, [handleCollapseGroup]);
+
   const handleOnDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
-      isDraggingRef.current = false;
+      const activeData = getActiveData(active);
+      endDrag();
 
       if (!over?.id || active.id === over.id) {
         return;
       }
 
-      if (!active.data.current || !over.data.current) {
+      if (!activeData?.sortable || !over.data.current) {
         return;
       }
 
-      const fromIndex: number = active.data.current.sortable.index;
+      const fromIndex: number = activeData.sortable.index;
       const toIndex: number = over.data.current.sortable.index;
-      let placement: 'before' | 'after' | 'insert' = fromIndex < toIndex ? 'after' : 'before';
+      let placement: Placement | 'insert' = getPlacement(fromIndex, toIndex);
 
       let destinationId = over.id as EntryId;
-      const isDraggingGroup = active.data.current?.type === SupportedEntry.Group;
+      const isDraggingGroup = activeData.type === SupportedEntry.Group;
 
       // prevent dropping a group inside another
-      if (
-        isDraggingGroup &&
-        !canDrop(over.data.current.type, over.data.current.parent, placement, getIsCollapsed(destinationId))
-      ) {
+      if (!canDropOver(active, activeData, over)) {
         return;
       }
 
-      /**
-       * We need to specially handle the end-group
-       * Dragging before a end-group will add the entry to the end of the group
-       * Dragging after a end-group will add the event after the group itself
-       * Dragging to the top of a group either place before first entry or if no entries do insert
-       */
+      // An end marker distinguishes insertion inside its group from placement after it.
       if (destinationId.startsWith('end-')) {
         destinationId = destinationId.replace('end-', '');
-        // if we are moving before the end, we use the insert operation
         if (placement === 'before') {
           placement = 'insert';
         }
       } else {
         const group = entries[destinationId];
-        // if dragging into a group
         if (isOntimeGroup(group) && placement === 'after') {
           if (isDraggingGroup) {
-            // ... and the dragged entry is a group, we know that the group is collapsed, because of the safe check canDrop from before
-            // so we can safely push the dragged event after the group
             destinationId = group.id;
           } else if (group.entries.length === 0) {
-            // ... and the group is entry, we insert
             destinationId = group.id;
             placement = 'insert';
           } else {
-            // otherwise we add it to before the first group child
             destinationId = group.entries[0];
             placement = 'before';
           }
         }
       }
 
-      // Optimistic update pattern to keep DND responsive
-      // 1. Keep copy of current state in case we need to revert
-      const currentEntries = [...sortableData];
-      // 2. Immediately update local state for responsive UI
-      setSortableData((currentEntries) => {
-        return reorderArray(currentEntries, fromIndex, toIndex);
+      const previousSortableData = [...sortableData];
+      setSortableData((currentSortableData) => {
+        return reorderArray(currentSortableData, fromIndex, toIndex);
       });
-      // 3. Trigger async mutation, revert on error
+      // Restore the previous list order if the mutation fails.
       reorderEntry(active.id as EntryId, destinationId, placement).catch((_) => {
-        setSortableData(currentEntries);
+        setSortableData(previousSortableData);
       });
     },
-    [entries, sortableData, setSortableData, getIsCollapsed, reorderEntry],
+    [entries, sortableData, setSortableData, reorderEntry, getActiveData, canDropOver, endDrag],
   );
 
-  /**
-   * When we drag a group, we force collapse it
-   * This avoids strange scenarios like dropping a group inside itself
-   */
-  const collapseDraggedGroups = useCallback(
+  const handleOnDragStart = useCallback(
     (event: DragStartEvent) => {
       isDraggingRef.current = true;
-      const isGroup = event.active.data.current?.type === SupportedEntry.Group;
-      if (isGroup) {
-        handleCollapseGroup(true, event.active.id as EntryId);
+      activeDataRef.current = event.active.data.current ?? null;
+      setActiveId(event.active.id as EntryId);
+      setIsValidDrop(true);
+
+      if (event.active.data.current?.type === SupportedEntry.Group) {
+        const groupId = event.active.id as EntryId;
+        forceCollapsedGroupRef.current = getIsCollapsed(groupId) ? null : groupId;
+        handleCollapseGroup(true, groupId);
       }
     },
-    [handleCollapseGroup],
+    [handleCollapseGroup, getIsCollapsed],
   );
 
-  /**
-   * When we drag over a group, we expand it if it is collapsed
-   */
-  const expandOverGroup = useCallback(
+  const handleOnDragOver = useCallback(
     (event: DragOverEvent) => {
-      // if we are dragging a group, the drop operation is invalid so we dont expand
-      if (event.active.data.current?.type === SupportedEntry.Group) {
+      const { active, over } = event;
+      const activeData = getActiveData(active);
+      const isValid = canDropOver(active, activeData, over);
+
+      setIsValidDrop(isValid);
+      const nextDropTarget =
+        isValid && activeData?.sortable && over?.data.current && over.id !== active.id
+          ? {
+              id: over.id as EntryId,
+              placement: getPlacement(activeData.sortable.index, over.data.current.sortable.index),
+            }
+          : null;
+      setDropTarget((currentDropTarget) =>
+        currentDropTarget?.id === nextDropTarget?.id && currentDropTarget?.placement === nextDropTarget?.placement
+          ? currentDropTarget
+          : nextDropTarget,
+      );
+
+      // Expanding a group makes an otherwise valid drop after it invalid.
+      if (activeData?.type === SupportedEntry.Group) {
         return;
       }
-      if (event.over?.data.current?.type !== SupportedEntry.Group) {
+      if (over?.data.current?.type !== SupportedEntry.Group) {
         return;
       }
 
-      const groupId = event.over?.id as EntryId | undefined;
-      handleCollapseGroup(false, groupId);
+      handleCollapseGroup(false, over.id as EntryId);
     },
-    [handleCollapseGroup],
+    [handleCollapseGroup, getActiveData, canDropOver],
   );
 
   return useMemo(
     () => ({
       sensors,
       isDraggingRef,
+      activeId,
+      isValidDrop,
+      dropTarget,
       handleOnDragEnd,
-      collapseDraggedGroups,
-      expandOverGroup,
+      handleOnDragStart,
+      handleOnDragCancel: endDrag,
+      handleOnDragOver,
     }),
-    [sensors, handleOnDragEnd, collapseDraggedGroups, expandOverGroup],
+    [sensors, activeId, isValidDrop, dropTarget, handleOnDragEnd, handleOnDragStart, endDrag, handleOnDragOver],
   );
 }

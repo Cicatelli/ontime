@@ -22,6 +22,7 @@ import {
 import {
   createTransaction,
   customFieldMutation,
+  getProcessedRundown,
   processRundown,
   rundownCache,
   rundownMutation,
@@ -30,6 +31,7 @@ import { type ProcessedRundownMetadata } from '../rundown.parser.js';
 
 const setRundownMock = vi.fn();
 const setCustomFieldsMock = vi.fn();
+const getRundownMock = vi.fn();
 
 vi.mock('../../../classes/data-provider/DataProvider.js', () => {
   return {
@@ -37,6 +39,8 @@ vi.mock('../../../classes/data-provider/DataProvider.js', () => {
       return {
         setRundown: setRundownMock,
         setCustomFields: setCustomFieldsMock,
+        getRundown: getRundownMock,
+        getCustomFields: () => ({}),
       };
     }),
   };
@@ -79,6 +83,34 @@ describe('createTransaction', () => {
 
     expect(setRundownMock).toHaveBeenCalledOnce();
     expect(setCustomFieldsMock).toHaveBeenCalledOnce();
+  });
+});
+
+describe('getProcessedRundown()', () => {
+  it('serves the loaded rundown from cache', () => {
+    rundownCache.init(makeRundown({ id: 'loaded' }), {});
+
+    expect(getProcessedRundown('loaded')).toBe(rundownCache.get().rundown);
+    expect(getRundownMock).not.toHaveBeenCalled();
+  });
+
+  it('reads and processes a rundown which is not loaded', () => {
+    rundownCache.init(makeRundown({ id: 'loaded' }), {});
+    getRundownMock.mockReturnValueOnce(
+      makeRundown({
+        id: 'background',
+        entries: { a: makeOntimeEvent({ id: 'a' }) },
+        order: ['a'],
+        flatOrder: [],
+      }),
+    );
+
+    const result = getProcessedRundown('background');
+
+    expect(getRundownMock).toHaveBeenCalledWith('background');
+    expect(result.id).toBe('background');
+    // processing derives the flat order from the stored order
+    expect(result.flatOrder).toEqual(['a']);
   });
 });
 
@@ -1071,6 +1103,40 @@ describe('rundownMutation.reorder()', () => {
     expect(rundown.order).toStrictEqual(['3', '1', '2']);
   });
 
+  it('moves an event before a later event', () => {
+    const rundown = makeRundown({
+      order: ['1', '2', '3'],
+      flatOrder: ['1', '2', '3'],
+      entries: {
+        '1': makeOntimeEvent({ id: '1' }),
+        '2': makeOntimeEvent({ id: '2' }),
+        '3': makeOntimeEvent({ id: '3' }),
+      },
+    });
+
+    // ie: cut the first event and paste it above the last
+    rundownMutation.reorder(rundown, rundown.entries['1'], rundown.entries['3'], 'before');
+
+    expect(rundown.order).toStrictEqual(['2', '1', '3']);
+  });
+
+  it('keeps the order when an event is moved before the event that already follows it', () => {
+    const rundown = makeRundown({
+      order: ['1', '2', '3'],
+      flatOrder: ['1', '2', '3'],
+      entries: {
+        '1': makeOntimeEvent({ id: '1' }),
+        '2': makeOntimeEvent({ id: '2' }),
+        '3': makeOntimeEvent({ id: '3' }),
+      },
+    });
+
+    // ie: a repeated request from a client that has not yet seen the previous move
+    rundownMutation.reorder(rundown, rundown.entries['2'], rundown.entries['3'], 'before');
+
+    expect(rundown.order).toStrictEqual(['1', '2', '3']);
+  });
+
   it('moves an event out and before a group', () => {
     const rundown = makeRundown({
       order: ['1', '2'],
@@ -1718,16 +1784,18 @@ describe('rundownMutation.swap()', () => {
     expect((testRundown.entries['1'] as OntimeEvent).id).toBe('1');
     expect((testRundown.entries['1'] as OntimeEvent).cue).toBe('data2');
     expect((testRundown.entries['1'] as OntimeEvent).timeStart).toBe(1);
-    expect((testRundown.entries['1'] as OntimeEvent).revision).toBe(1);
+    // the swapped entries changed, their revision has to say so
+    expect((testRundown.entries['1'] as OntimeEvent).revision).toBe(2);
 
     expect((testRundown.entries['2'] as OntimeEvent).id).toBe('2');
     expect((testRundown.entries['2'] as OntimeEvent).cue).toBe('data1');
     expect((testRundown.entries['2'] as OntimeEvent).timeStart).toBe(2);
-    expect((testRundown.entries['2'] as OntimeEvent).revision).toBe(1);
+    expect((testRundown.entries['2'] as OntimeEvent).revision).toBe(2);
 
     expect((testRundown.entries['3'] as OntimeEvent).id).toBe('3');
     expect((testRundown.entries['3'] as OntimeEvent).cue).toBe('data3');
     expect((testRundown.entries['3'] as OntimeEvent).timeStart).toBe(3);
+    // untouched, so it keeps its revision
     expect((testRundown.entries['3'] as OntimeEvent).revision).toBe(1);
   });
 });

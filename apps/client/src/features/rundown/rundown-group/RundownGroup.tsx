@@ -2,28 +2,28 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { EntryId, OntimeGroup } from 'ontime-types';
 import { MILLIS_PER_MINUTE } from 'ontime-utils';
-import { MouseEvent, useRef } from 'react';
+import { MouseEvent, useCallback } from 'react';
 import {
   IoChevronDown,
   IoChevronUp,
   IoDuplicateOutline,
   IoFolderOpenOutline,
-  IoLockClosed,
   IoReorderTwo,
   IoTrash,
+  IoLockClosed,
 } from 'react-icons/io5';
+import { TbClockPin } from 'react-icons/tb';
 
 import IconButton from '../../../common/components/buttons/IconButton';
 import Tag from '../../../common/components/tag/Tag';
+import Tooltip from '../../../common/components/tooltip/Tooltip';
 import { useEntryActionsContext } from '../../../common/context/EntryActionsContext';
 import { useContextMenu } from '../../../common/hooks/useContextMenu';
-import { useEntryCopy } from '../../../common/stores/entryCopyStore';
+import { useIsEntryCopyTarget } from '../../../common/stores/entryCopyStore';
 import { deviceAlt, deviceMod } from '../../../common/utils/deviceUtils';
-import { getOffsetState } from '../../../common/utils/offset';
 import { cx, getAccessibleColour } from '../../../common/utils/styleUtils';
 import { formatDuration, formatTime } from '../../../common/utils/time';
 import TitleEditor from '../common/TitleEditor';
-import { canDrop } from '../rundown.utils';
 import { useEventSelection } from '../useEventSelection';
 
 import style from './RundownGroup.module.scss';
@@ -39,12 +39,30 @@ interface RundownGroupProps {
 export default function RundownGroup({ data, hasCursor, collapsed, onCollapse }: RundownGroupProps) {
   'use memo';
 
-  const handleRef = useRef<null | HTMLSpanElement>(null);
-  const { clone, ungroup, deleteEntry } = useEntryActionsContext();
+  const { clone, ungroup, deleteEntry, updateEntry } = useEntryActionsContext();
 
   const selectSingleEntry = useEventSelection((state) => state.setSingleEntrySelection);
   const selectedEvents = useEventSelection((state) => state.selectedEvents);
-  const entryCopyId = useEntryCopy((state) => state.entryCopyId);
+  const isCopyTarget = useIsEntryCopyTarget(data.id);
+
+  const isDurationMatching = data.targetDuration !== null && data.targetDuration === data.duration;
+
+  const [planOffset, offset] = (() => {
+    if (data.targetDuration === null) {
+      return [null, 0];
+    }
+
+    const offset = data.duration - data.targetDuration;
+    if (offset === 0) {
+      return [null, 0];
+    }
+    const absOffset = Math.abs(offset);
+    return [`${offset < 0 ? '-' : '+'}${formatDuration(absOffset, absOffset > 2 * MILLIS_PER_MINUTE)}`, offset];
+  })();
+
+  const matchDuration = useCallback(() => {
+    updateEntry({ id: data.id, targetDuration: data.duration });
+  }, [data.duration, data.id, updateEntry]);
 
   const [onContextMenu] = useContextMenu<HTMLDivElement>(() => [
     {
@@ -64,6 +82,18 @@ export default function RundownGroup({ data, hasCursor, collapsed, onCollapse }:
     { type: 'divider' },
     {
       type: 'item',
+      label: 'Match Content Duration',
+      icon: TbClockPin,
+      onClick: matchDuration,
+      disabled: isDurationMatching,
+      description:
+        offset > 0
+          ? "Increase group target duration to match it's contents"
+          : "Decrease group target duration to match it's contents",
+    },
+    { type: 'divider' },
+    {
+      type: 'item',
       label: 'Delete Group',
       icon: IoTrash,
       shortcut: `${deviceAlt}+Backspace`,
@@ -78,8 +108,6 @@ export default function RundownGroup({ data, hasCursor, collapsed, onCollapse }:
     transform,
     transition,
     isDragging,
-    isOver,
-    over,
   } = useSortable({
     id: data.id,
     data: {
@@ -103,29 +131,12 @@ export default function RundownGroup({ data, hasCursor, collapsed, onCollapse }:
   };
 
   const binderColours = data.colour && getAccessibleColour(data.colour);
-  const isValidDrop = isDragging && over?.id && canDrop(over.data.current?.type, over.data.current?.parent);
-
-  const [planOffset, planOffsetLabel] = (() => {
-    if (data.targetDuration === null) {
-      return [null, null];
-    }
-
-    const offset = data.duration - data.targetDuration;
-    if (offset === 0) {
-      return [null, 'under'];
-    }
-    const absOffset = Math.abs(offset);
-    return [
-      `${offset < 0 ? '-' : '+'}${formatDuration(absOffset, absOffset > 2 * MILLIS_PER_MINUTE)}`,
-      getOffsetState(offset),
-    ];
-  })();
 
   const dragStyle = {
     zIndex: isDragging ? 2 : 'inherit',
+    opacity: isDragging ? 0.5 : undefined,
     transform: CSS.Translate.toString(transform),
     transition,
-    cursor: isOver ? (isValidDrop ? 'grabbing' : 'no-drop') : 'inherit',
   };
 
   return (
@@ -134,7 +145,7 @@ export default function RundownGroup({ data, hasCursor, collapsed, onCollapse }:
         style.group,
         hasCursor && style.hasCursor,
         !collapsed && style.expanded,
-        entryCopyId === data.id && style.copyTarget,
+        isCopyTarget && style.copyTarget,
       ])}
       ref={setNodeRef}
       onClick={handleFocusClick}
@@ -145,13 +156,8 @@ export default function RundownGroup({ data, hasCursor, collapsed, onCollapse }:
       }}
       data-testid='rundown-group'
     >
-      <div className={style.binder} style={{ ...binderColours }} tabIndex={-1}>
-        <span
-          className={cx([style.drag, isDragging && style.isDragging, isDragging && !isValidDrop && style.notAllowed])}
-          ref={handleRef}
-          {...dragAttributes}
-          {...dragListeners}
-        >
+      <div className={style.binder} style={{ ...binderColours }} {...dragAttributes} {...dragListeners}>
+        <span className={style.drag}>
           <IoReorderTwo />
         </span>
       </div>
@@ -175,20 +181,18 @@ export default function RundownGroup({ data, hasCursor, collapsed, onCollapse }:
             <div className={style.metaLabel}>End</div>
             <div>{formatTime(data.timeEnd)}</div>
           </div>
-          <div className={style.metaEntry}>
-            <div className={style.metaLabel}>Duration</div>
-            <div className={style.duration}>
-              {planOffset === null ? (
-                formatDuration(data.duration)
-              ) : (
-                <span className={cx([planOffsetLabel && style[planOffsetLabel]])}>
-                  <span className={style.strike}>{formatDuration(data.duration)}</span>
-                  <Tag className={style.offsetLabel}>{planOffset}</Tag>
-                </span>
-              )}
-              {data.targetDuration !== null && <IoLockClosed className={style.lockIcon} />}
+          <Tooltip text={'Group has target duration'} disabled={data.targetDuration === null}>
+            <div className={style.metaEntry}>
+              <div className={style.metaLabel}>
+                Duration
+                {data.targetDuration !== null && <IoLockClosed className={style.lockIcon} />}
+              </div>
+              <div className={cx([style.duration, planOffset && style.warning])}>
+                <span className={style.strike}>{formatDuration(data.duration)}</span>
+                {planOffset && <Tag className={style.offsetLabel}>{planOffset}</Tag>}
+              </div>
             </div>
-          </div>
+          </Tooltip>
         </div>
       </div>
     </div>

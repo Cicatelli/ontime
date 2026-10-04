@@ -1,10 +1,6 @@
 import { memo, useEffect, useMemo } from 'react';
 
-import EmptyPage from '../../../common/components/state/EmptyPage';
-import { EntryActionsProvider } from '../../../common/context/EntryActionsContext';
 import useCustomFields from '../../../common/hooks-query/useCustomFields';
-import { useLoadedRundownSource } from '../../../common/hooks-query/useScopedRundown';
-import { useEntryActions } from '../../../common/hooks/useEntryAction';
 import CuesheetDnd from '../../../views/cuesheet/cuesheet-dnd/CuesheetDnd';
 import CuesheetTable from '../../../views/cuesheet/cuesheet-table/CuesheetTable';
 import { useCuesheetPermissions } from '../../../views/cuesheet/useTablePermissions';
@@ -13,11 +9,9 @@ import { makeRundownColumns } from './makeRundownColumns';
 
 export default memo(RundownTable);
 function RundownTable() {
-  const { data: customFields, status: customFieldStatus } = useCustomFields();
+  const { data: customFields } = useCustomFields();
   const setPermissions = useCuesheetPermissions((state) => state.setPermissions);
   const { editorMode } = useEditorFollowMode();
-  const source = useLoadedRundownSource();
-  const actions = useEntryActions();
 
   // Editor always has full permissions
   useEffect(() => {
@@ -32,17 +26,9 @@ function RundownTable() {
 
   const columns = useMemo(() => makeRundownColumns(customFields), [customFields]);
 
-  const isLoading = !customFields || customFieldStatus === 'pending';
-
   return (
-    <EntryActionsProvider actions={actions}>
-      <CuesheetDnd columns={columns} tableRoot='editor'>
-        {isLoading ? (
-          <EmptyPage text='Loading...' />
-        ) : (
-          <CuesheetTable columns={columns} source={source} cuesheetMode={editorMode} tableRoot='editor' />
-        )}
-      </CuesheetDnd>
-    </EntryActionsProvider>
+    <CuesheetDnd columns={columns} tableRoot='editor'>
+      <CuesheetTable columns={columns} cuesheetMode={editorMode} tableRoot='editor' />
+    </CuesheetDnd>
   );
 }

@@ -1,4 +1,4 @@
-import { type Day, Instant, PlayableEvent, Playback, SupportedEntry, TimerPhase } from 'ontime-types';
+import { type Day, Instant, OffsetMode, PlayableEvent, Playback, SupportedEntry, TimerPhase } from 'ontime-types';
 import { MILLIS_PER_HOUR, MILLIS_PER_MINUTE } from 'ontime-utils';
 
 import { makeOntimeEvent, makeOntimeGroup, makeRundown } from '../../api-data/rundown/__mocks__/rundown.mocks.js';
@@ -248,6 +248,48 @@ describe('mutation on runtimeState', () => {
       state = getState();
       expect(state.timer.elapsed).toBe(3 * MILLIS_PER_MINUTE);
     });
+
+    test('a pause across midnight keeps the countdown frozen and resumes with five minutes of delay', async () => {
+      clearState();
+      const event = {
+        ...mockEvent,
+        id: 'midnight-pause',
+        timeStart: 23 * MILLIS_PER_HOUR,
+        timeEnd: MILLIS_PER_HOUR,
+        duration: 2 * MILLIS_PER_HOUR,
+      };
+      await initRundown(makeRundown({ entries: { [event.id]: event }, order: [event.id] }), {});
+      vi.runAllTimers();
+      const { metadata, rundown } = rundownCache.get();
+
+      vi.setSystemTime('jan 1 23:50');
+      load(event, rundown, metadata);
+      start();
+      vi.setSystemTime('jan 1 23:58');
+      update();
+      pause();
+
+      vi.setSystemTime('jan 2 00:03');
+      update();
+      let state = getState();
+      expect(state.timer.current).toBe(112 * MILLIS_PER_MINUTE);
+      expect(state.timer.elapsed).toBe(8 * MILLIS_PER_MINUTE);
+      expect(state.timer.expectedFinish).toBe(1 * MILLIS_PER_HOUR + 55 * MILLIS_PER_MINUTE);
+      expect(state.offset.absolute).toBe(55 * MILLIS_PER_MINUTE);
+
+      start();
+      state = getState();
+      expect(state._timer.pausedDuration).toBe(5 * MILLIS_PER_MINUTE);
+      expect(state.timer.current).toBe(112 * MILLIS_PER_MINUTE);
+      expect(state.timer.elapsed).toBe(8 * MILLIS_PER_MINUTE);
+      expect(state.offset.absolute).toBe(55 * MILLIS_PER_MINUTE);
+
+      vi.setSystemTime('jan 2 00:05');
+      update();
+      state = getState();
+      expect(state.timer.current).toBe(110 * MILLIS_PER_MINUTE);
+      expect(state.timer.elapsed).toBe(10 * MILLIS_PER_MINUTE);
+    });
   });
 
   test('runtime offset', async () => {
@@ -342,6 +384,7 @@ describe('mutation on runtimeState', () => {
 
     const { rundown, metadata } = rundownCache.get();
     const restorePoint = {
+      rundownId: rundown.id,
       playback: Playback.Play,
       selectedEventId: 'event1',
       startedAt: 0,
@@ -350,6 +393,8 @@ describe('mutation on runtimeState', () => {
       firstStart: 60 * 1000,
       startEpoch,
       currentDay: 2,
+      offsetMode: OffsetMode.Absolute,
+      savedAt: startEpoch,
     };
 
     resume(restorePoint, mockRundown.entries.event1 as PlayableEvent, rundown, metadata);
@@ -948,7 +993,7 @@ describe('loadGroupFlagAndEnd()', () => {
 
     const metadata = { playableEventOrder: ['0', '11', '3'], flags: ['1'] } as RundownMetadata;
 
-    loadGroupFlagAndEnd(rundown, metadata, 2, state);
+    loadGroupFlagAndEnd(rundown, metadata, state);
 
     expect(state).toMatchObject({
       groupNow: rundown.entries[1],
@@ -976,7 +1021,7 @@ describe('loadGroupFlagAndEnd()', () => {
 
     const metadata = { playableEventOrder: ['0', '11', '22'], flags: ['1'] } as RundownMetadata;
 
-    loadGroupFlagAndEnd(rundown, metadata, 1, state);
+    loadGroupFlagAndEnd(rundown, metadata, state);
 
     expect(state).toMatchObject({
       groupNow: rundown.entries[2],
@@ -1004,7 +1049,7 @@ describe('loadGroupFlagAndEnd()', () => {
 
     const metadata = { playableEventOrder: ['0', '11', '22'], flags: ['1'] } as RundownMetadata;
 
-    loadGroupFlagAndEnd(rundown, metadata, 1, state);
+    loadGroupFlagAndEnd(rundown, metadata, state);
 
     expect(state).toMatchObject({
       groupNow: null,
@@ -1029,7 +1074,7 @@ describe('loadGroupFlagAndEnd()', () => {
 
     const metadata = { playableEventOrder: ['0', '1'], flags: ['1'] } as RundownMetadata;
 
-    loadGroupFlagAndEnd(rundown, metadata, 0, state);
+    loadGroupFlagAndEnd(rundown, metadata, state);
 
     expect(state).toMatchObject({
       groupNow: null,
@@ -1091,7 +1136,7 @@ describe('loadGroupFlagAndEnd()', () => {
 
     const metadata = { playableEventOrder: ['0', '1', '2', '3'], flags: ['3'] } as RundownMetadata;
 
-    loadGroupFlagAndEnd(rundown, metadata, 0, state);
+    loadGroupFlagAndEnd(rundown, metadata, state);
 
     // _group is the last event in the group (event 2)
     // isLinkedToLoaded is false because event 1 (between loaded and group end) has countToEnd=true
@@ -1173,7 +1218,7 @@ describe('loadGroupFlagAndEnd()', () => {
 
     const metadata = { playableEventOrder: ['0', '1', '2', '3'], flags: ['3'] } as RundownMetadata;
 
-    loadGroupFlagAndEnd(rundown, metadata, 0, state);
+    loadGroupFlagAndEnd(rundown, metadata, state);
 
     // _group is the last event in the group (event 2)
     // isLinkedToLoaded is true because no preceding event had countToEnd
@@ -1198,5 +1243,33 @@ describe('loadGroupFlagAndEnd()', () => {
       event: rundown.entries[3],
       isLinkedToLoaded: false,
     });
+  });
+
+  test('finds the next flag when skipped events precede the loaded event', () => {
+    // skipped events are part of the timed order but not the playable order
+    rundownCache.init(
+      makeRundown({
+        entries: {
+          skipped: makeOntimeEvent({ id: 'skipped', skip: true, timeStart: 0, timeEnd: 10, duration: 10 }),
+          group: makeOntimeGroup({ id: 'group', entries: ['loaded', 'flagged'] }),
+          loaded: makeOntimeEvent({ id: 'loaded', timeStart: 10, timeEnd: 20, duration: 10 }),
+          flagged: makeOntimeEvent({ id: 'flagged', flag: true, timeStart: 30, timeEnd: 40, duration: 10 }),
+          last: makeOntimeEvent({ id: 'last', timeStart: 40, timeEnd: 50, duration: 10 }),
+        },
+        order: ['skipped', 'group', 'last'],
+      }),
+      {},
+    );
+    const { metadata, rundown } = rundownCache.get();
+
+    load(rundown.entries.loaded as PlayableEvent, rundown, metadata);
+
+    const state = getState();
+    expect(state.eventNow?.id).toBe('loaded');
+    expect(state.groupNow?.id).toBe('group');
+    expect(state.eventFlag?.id).toBe('flagged');
+    // the gap between loaded and flagged is accumulated downstream of the loaded event
+    expect(state._group).toMatchObject({ event: { id: 'flagged' }, accumulatedGap: 10 });
+    expect(state._end).toMatchObject({ event: { id: 'last' }, accumulatedGap: 10 });
   });
 });

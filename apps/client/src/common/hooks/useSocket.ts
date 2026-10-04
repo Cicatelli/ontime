@@ -95,6 +95,22 @@ export const useAuxTimersTime = createSelector((state: RuntimeStore) => {
   };
 });
 
+export const useAuxTimersName = createSelector((state: RuntimeStore) => {
+  return {
+    aux1: state.auxtimer1.name,
+    aux2: state.auxtimer2.name,
+    aux3: state.auxtimer3.name,
+  };
+});
+
+export const useAuxTimersActive = createSelector((state: RuntimeStore) => {
+  return (
+    state.auxtimer1.playback === SimplePlayback.Start ||
+    state.auxtimer2.playback === SimplePlayback.Start ||
+    state.auxtimer3.playback === SimplePlayback.Start
+  );
+});
+
 export const useAuxTimerTime = (index: number) =>
   createSelector((state: RuntimeStore) => {
     if (index === 1) return state.auxtimer1.current;
@@ -108,15 +124,18 @@ export const useAuxTimerControl = (index: number) =>
       return {
         playback: state.auxtimer1.playback,
         direction: state.auxtimer1.direction,
+        name: state.auxtimer1.name,
       };
     if (index === 2)
       return {
         playback: state.auxtimer2.playback,
         direction: state.auxtimer2.direction,
+        name: state.auxtimer2.name,
       };
     return {
       playback: state.auxtimer3.playback,
       direction: state.auxtimer3.direction,
+      name: state.auxtimer3.name,
     };
   })();
 
@@ -163,16 +182,24 @@ export const useNextFlag = createSelector((state: RuntimeStore) => ({
 export const useProgressData = createSelector((state: RuntimeStore) => ({
   current: state.timer.current,
   duration: state.timer.duration,
+  eventId: state.eventNow?.id ?? null,
   timeWarning: state.eventNow?.timeWarning ?? null,
   timeDanger: state.eventNow?.timeDanger ?? null,
 }));
 
-export const useExpectedStartData = createSelector((state: RuntimeStore) => ({
+const selectExpectedScheduleData = (state: RuntimeStore) => ({
   offset: state.offset.mode === OffsetMode.Absolute ? state.offset.absolute : state.offset.relative,
   mode: state.offset.mode,
   currentDay: state.rundown.currentDay ?? 0,
   actualStart: state.rundown.actualStart,
   plannedStart: state.rundown.plannedStart,
+});
+
+/** Expected schedule times change with the offset, independently of clock ticks. */
+export const useExpectedScheduleData = createSelector(selectExpectedScheduleData);
+
+export const useExpectedStartData = createSelector((state: RuntimeStore) => ({
+  ...selectExpectedScheduleData(state),
   clock: state.clock,
 }));
 

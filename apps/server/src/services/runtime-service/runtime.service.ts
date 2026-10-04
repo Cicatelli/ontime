@@ -2,6 +2,7 @@ import { deepEqual } from 'fast-equals';
 import {
   EndAction,
   EntryId,
+  Instant,
   LogOrigin,
   Offset,
   OffsetMode,
@@ -18,17 +19,22 @@ import { millisToString, validatePlayback } from 'ontime-utils';
 
 import { triggerAutomations } from '../../api-data/automation/automation.service.js';
 import { triggerReportEntry } from '../../api-data/report/report.service.js';
-import { getCurrentRundown, getEntryWithId, getRundownMetadata } from '../../api-data/rundown/rundown.dao.js';
-import { RundownMetadata } from '../../api-data/rundown/rundown.types.js';
+import {
+  getCurrentRundown,
+  getCurrentRundownId,
+  getEntryWithId,
+  getRundownMetadata,
+} from '../../api-data/rundown/rundown.dao.js';
+import { cloneEntryData } from '../../api-data/rundown/rundown.utils.js';
 import { logger } from '../../classes/Logger.js';
+import * as timeCore from '../../lib/time-core/timeCore.js';
 import { timerConfig } from '../../setup/config.js';
 import { eventStore } from '../../stores/EventStore.js';
 import * as runtimeState from '../../stores/runtimeState.js';
 import type { RuntimeState } from '../../stores/runtimeState.js';
-import { EventTimer } from '../EventTimer.js';
 import { restoreService } from '../restore-service/restore.service.js';
-import type { RestorePoint } from '../restore-service/restore.type.js';
-import { skippedOutOfEvent } from '../timerUtils.js';
+import type { RestorePoint } from '../restore-service/restore.types.js';
+import { EventTimer } from './EventTimer.js';
 import {
   findNextPlayableId,
   findNextPlayableWithCue,
@@ -39,6 +45,7 @@ import {
   getShouldTimerUpdate,
   isNewSecond,
 } from './runtime.utils.js';
+import { skippedOutOfEvent } from './timer.utils.js';
 
 /**
  * Service manages runtime status of app
@@ -67,7 +74,7 @@ class RuntimeService {
    * This is the only exception of a private method that has broadcast result
    * */
   @broadcastResult
-  private checkTimerUpdate({ hasTimerFinished, hasSecondaryTimerFinished }: runtimeState.UpdateResult) {
+  private checkTimerUpdate({ hasTimerFinished, finishedAt, hasSecondaryTimerFinished }: runtimeState.UpdateResult) {
     const newState = runtimeState.getState();
     // 1. find if we need to dispatch integrations related to the phase
     const timerPhaseChanged = RuntimeService.previousState.timer?.phase !== newState.timer.phase;
@@ -106,7 +113,7 @@ class RuntimeService {
         // to push the playback to the right place
         // this comes with the caveat that we will lose our runtime data
         logger.warning(LogOrigin.Playback, 'Time skip detected, reloading roll');
-        this.roll(true);
+        this.handleRoll(true);
       }
     }
 
@@ -122,7 +129,21 @@ class RuntimeService {
         if (newState.eventNow.endAction === EndAction.LoadNext) {
           setTimeout(this.loadNext.bind(this), 0);
         } else if (newState.eventNow.endAction === EndAction.PlayNext) {
-          setTimeout(this.startNext.bind(this), 0);
+          // the next event starts when this one ends, which may be a moment after it was detected
+          const finishedId = newState.eventNow.id;
+          const end = finishedAt ?? timeCore.now();
+          setTimeout(
+            () => {
+              // playback may have changed while waiting
+              const { eventNow, timer } = runtimeState.getState();
+              if (eventNow?.id !== finishedId || timer.playback !== Playback.Play) return;
+
+              // after a time skip (eg: the system slept) the end is long past, so the next event starts now
+              const now = timeCore.now();
+              this.startNext(timeCore.timeSince(now, end) <= timerConfig.skipLimit ? end : now);
+            },
+            Math.max(0, timeCore.timeUntil(timeCore.now(), end)),
+          );
         }
       }
     }
@@ -175,22 +196,28 @@ class RuntimeService {
   /**
    * Called when the underlying data has changed,
    * we check if the change affects the runtime
+   *
+   * !!! the rundown data is read here rather than received from the caller:
+   * this is called deferred (setImmediate) and a later mutation may have
+   * superseded the metadata captured at commit time.
+   * Reading both the rundown and its metadata here keeps them consistent
    */
-  public notifyOfChangedEvents(rundownMetadata: RundownMetadata) {
+  public notifyOfChangedEvents() {
     const state = runtimeState.getState();
     const hasLoadedElements = state.eventNow !== null || state.eventNext !== null;
     if (!hasLoadedElements) {
       return;
     }
 
-    // all events were deleted
-    if (rundownMetadata.playableEventOrder.length === 0) {
+    const metadata = getRundownMetadata();
+
+    // all events were deleted, stopping clears the loaded data and there is nothing left to reconcile
+    if (metadata.playableEventOrder.length === 0) {
       runtimeState.stop();
+      return;
     }
 
-    const rundown = getCurrentRundown();
-    const metadata = getRundownMetadata();
-    runtimeState.updateAll(rundown, metadata);
+    runtimeState.updateAll(getCurrentRundown(), metadata);
   }
 
   /**
@@ -436,14 +463,14 @@ class RuntimeService {
    * we need to isolate handleStart so we have control over the side effects
    * startSelected being a private function does not trigger emits
    */
-  private handleStart(): boolean {
+  private handleStart(at?: Instant): boolean {
     const previousState = runtimeState.getState();
     const canStart = validatePlayback(previousState.timer.playback, previousState.timer.phase).start;
     if (!canStart) {
       return false;
     }
 
-    const didStart = this.eventTimer?.start() ?? false;
+    const didStart = this.eventTimer?.start(at) ?? false;
     const newState = runtimeState.getState();
     logger.info(LogOrigin.Playback, `Play Mode ${newState.timer.playback.toUpperCase()}`);
 
@@ -481,12 +508,12 @@ class RuntimeService {
    * Starts playback on next event
    */
   @broadcastResult
-  public startNext(): boolean {
+  public startNext(at?: Instant): boolean {
     const hasNext = this.handleLoadNext();
     if (!hasNext) {
       return false;
     }
-    return this.handleStart();
+    return this.handleStart(at);
   }
 
   /**
@@ -568,7 +595,17 @@ class RuntimeService {
    * Sets playback to roll
    */
   @broadcastResult
-  public roll(skipCheck: boolean = false) {
+  public roll() {
+    this.handleRoll();
+  }
+
+  /**
+   * Contains logic for setting playback to roll
+   *
+   * we need to isolate handleRoll so we have control over the side effects
+   * handleRoll being a private function does not trigger emits
+   */
+  private handleRoll(skipCheck: boolean = false) {
     const previousState = runtimeState.getState();
     if (!skipCheck) {
       const canRoll = validatePlayback(previousState.timer.playback, previousState.timer.phase).roll;
@@ -615,9 +652,15 @@ class RuntimeService {
    */
   @broadcastResult
   public resume(restorePoint: RestorePoint) {
+    if (restorePoint.rundownId !== getCurrentRundownId()) {
+      return;
+    }
+
+    runtimeState.setOffsetMode(restorePoint.offsetMode);
+
     const { selectedEventId, playback } = restorePoint;
     if (playback === Playback.Roll) {
-      this.roll();
+      this.handleRoll();
       return;
     }
 
@@ -651,10 +694,9 @@ class RuntimeService {
   }
 }
 
-// calculate at 30fps, refresh at 1fps
+// calculate at 30fps
 const eventTimer = new EventTimer({
   refresh: timerConfig.updateRate,
-  updateInterval: timerConfig.notificationRate,
 });
 export const runtimeService = new RuntimeService(eventTimer);
 
@@ -678,11 +720,11 @@ function broadcastResult(_target: any, _propertyKey: string, descriptor: Propert
     // to apply custom logic for different datasets
 
     // Update the entry if they have changed
-    let entryChanged = false;
-    entryChanged ||= updateMaybeEntryIfChanged('eventNow');
-    entryChanged ||= updateMaybeEntryIfChanged('eventNext');
-    entryChanged ||= updateMaybeEntryIfChanged('eventFlag');
-    entryChanged ||= updateMaybeEntryIfChanged('groupNow');
+    const eventNowChanged = updateMaybeEntryIfChanged('eventNow');
+    const eventNextChanged = updateMaybeEntryIfChanged('eventNext');
+    const eventFlagChanged = updateMaybeEntryIfChanged('eventFlag');
+    const groupNowChanged = updateMaybeEntryIfChanged('groupNow');
+    const entryChanged = eventNowChanged || eventNextChanged || eventFlagChanged || groupNowChanged;
 
     // for the very fist run there will be nothing in the previousState so we force an update
     const justStarted = !RuntimeService.previousState?.timer;
@@ -754,7 +796,7 @@ function broadcastResult(_target: any, _propertyKey: string, descriptor: Propert
       }
       // at this point we know that either the id or the contents has changed
       batch.add(key, currentEntry as RuntimeStore[K]); // we know that there is the necessary overlap in the types to cast this
-      RuntimeService.previousState[key] = structuredClone(currentEntry);
+      RuntimeService.previousState[key] = currentEntry ? cloneEntryData(currentEntry) : null;
       return true;
     }
 
@@ -762,6 +804,7 @@ function broadcastResult(_target: any, _propertyKey: string, descriptor: Propert
     if (hasImmediateChanges) {
       restoreService
         .save({
+          rundownId: getCurrentRundownId(),
           playback: state.timer.playback,
           selectedEventId: state.eventNow?.id ?? null,
           startedAt: state.timer.startedAt,
@@ -771,6 +814,7 @@ function broadcastResult(_target: any, _propertyKey: string, descriptor: Propert
           firstStart: state.rundown.actualStart,
           startEpoch: state._startEpoch,
           currentDay: state.rundown.currentDay,
+          offsetMode: state.offset.mode,
         })
         .catch((_e) => {
           //we don't do anything with the error here
@@ -778,6 +822,9 @@ function broadcastResult(_target: any, _propertyKey: string, descriptor: Propert
     }
 
     batch.send();
+
+    // mutations may bypass the event timer (eg: roll, resume, load), so we anticipate the new boundary here
+    eventTimer.scheduleNextBoundary();
     return result;
   };
 

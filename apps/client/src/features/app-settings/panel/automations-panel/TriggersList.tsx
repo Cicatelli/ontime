@@ -1,5 +1,5 @@
 import { NormalisedAutomation, Trigger } from 'ontime-types';
-import { Fragment, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { IoAdd } from 'react-icons/io5';
 
 import { deleteTrigger } from '../../../../common/api/automation';
@@ -9,23 +9,35 @@ import Info from '../../../../common/components/info/Info';
 import useAutomationSettings from '../../../../common/hooks-query/useAutomationSettings';
 import * as Panel from '../../panel-utils/PanelUtils';
 import { checkDuplicates } from './automationUtils';
-import AutomationForm from './TriggerForm';
+import TriggerForm from './TriggerForm';
 import TriggersListItem from './TriggersListItem';
+
+import style from './TriggersList.module.scss';
+
+type FormState = {
+  isOpen: boolean;
+  trigger?: Trigger;
+};
 
 interface TriggersListProps {
   triggers: Trigger[];
   automations: NormalisedAutomation;
   enabledAutomations?: boolean;
+  isLoading: boolean;
 }
 
-export default function TriggersList(props: TriggersListProps) {
-  const { triggers, automations, enabledAutomations } = props;
-  const [showForm, setShowForm] = useState(false);
+export default function TriggersList({ triggers, automations, enabledAutomations, isLoading }: TriggersListProps) {
+  const [formState, setFormState] = useState<FormState>({ isOpen: false, trigger: undefined });
   const { refetch } = useAutomationSettings();
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const openNewForm = () => setFormState({ isOpen: true });
+  const openEditForm = (trigger: Trigger) => setFormState({ isOpen: true, trigger });
+  const closeForm = () => setFormState({ isOpen: false, trigger: undefined });
+
   const handleDelete = async (id: string) => {
     try {
+      setDeleteError(null);
       await deleteTrigger(id);
     } catch (error) {
       setDeleteError(maybeAxiosError(error));
@@ -35,80 +47,105 @@ export default function TriggersList(props: TriggersListProps) {
   };
 
   const postSubmit = () => {
-    setShowForm(false);
+    closeForm();
     refetch();
   };
 
   const duplicates = useMemo(() => checkDuplicates(triggers), [triggers]);
+  const orphans = useMemo(
+    () => triggers.filter((trigger) => !Object.hasOwn(automations, trigger.automationId)).length,
+    [triggers, automations],
+  );
 
   // there is no point letting user creating a trigger if there are no automations
   const canAdd = Object.keys(automations).length > 0;
 
   return (
-    <Panel.Card>
-      <Panel.SubHeader>
-        Manage triggers
-        <Button type='submit' form='trigger-form' disabled={!canAdd} loading={false} onClick={() => setShowForm(true)}>
-          New <IoAdd />
-        </Button>
-      </Panel.SubHeader>
-      <Panel.Divider />
-      <Panel.Section>
-        {enabledAutomations === false && (
-          <Info>
-            Automations are disabled. You can still manage triggers here, but they will not run until enabled.
-          </Info>
+    <Panel.Section>
+      <Panel.Card>
+        {formState.isOpen && (
+          <TriggerForm
+            automations={automations}
+            trigger={formState.trigger ?? null}
+            onCancel={closeForm}
+            postSubmit={postSubmit}
+          />
         )}
-        {duplicates && (
-          <Panel.Error>
-            You have created multiple links between the same trigger and automation which can performance issues.
-          </Panel.Error>
-        )}
-        {showForm && (
-          <AutomationForm automations={automations} onCancel={() => setShowForm(false)} postSubmit={postSubmit} />
-        )}
-        <Panel.Table>
-          <thead>
-            <tr>
-              <th style={{ width: '35%' }}>Title</th>
-              <th style={{ width: '25%' }}>Lifecycle trigger</th>
-              <th style={{ width: '25%' }}>Automation</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {!showForm && triggers.length === 0 && (
-              <Panel.TableEmpty
-                label='Create a trigger to run an automation'
-                handleClick={canAdd ? () => setShowForm(true) : undefined}
-              />
-            )}
-            {triggers.map((trigger, index) => {
-              return (
-                <Fragment key={trigger.id}>
-                  <TriggersListItem
-                    automations={automations}
-                    id={trigger.id}
-                    title={trigger.title}
-                    trigger={trigger.trigger}
-                    automationId={trigger.automationId}
-                    duplicate={duplicates?.includes(index)}
-                    handleDelete={() => handleDelete(trigger.id)}
-                    postSubmit={postSubmit}
-                  />
-                  {deleteError && (
-                    <tr>
-                      <td colSpan={5}>
-                        <Panel.Error>{deleteError}</Panel.Error>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </Panel.Table>
-      </Panel.Section>
-    </Panel.Card>
+        <Panel.SubHeader>
+          Global triggers
+          <Button disabled={!canAdd} onClick={openNewForm}>
+            New <IoAdd />
+          </Button>
+        </Panel.SubHeader>
+        <Panel.Divider />
+        <Panel.Section>
+          {enabledAutomations === false && (
+            <Info type='warning'>
+              Automations are disabled. You can still manage them, but they won&apos;t run until enabled.
+            </Info>
+          )}
+          <Info>Actions in this section affect the entire project runtime, not just a single event.</Info>
+          {duplicates && (
+            <Panel.Error>
+              You have created multiple links between the same trigger and automation. Duplicate combinations will only
+              fire once per lifecycle event.
+            </Panel.Error>
+          )}
+          {orphans > 0 && (
+            <Panel.Error>
+              {orphans === 1
+                ? '1 trigger points at an automation that no longer exists and will never run.'
+                : `${orphans} triggers point at automations that no longer exist and will never run.`}
+            </Panel.Error>
+          )}
+          <Panel.Table className={style.table}>
+            <thead>
+              <tr>
+                <th style={{ width: '35%' }}>Title</th>
+                <th style={{ width: '25%' }}>Lifecycle trigger</th>
+                <th style={{ width: '25%' }}>Automation</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {!isLoading && triggers.length === 0 && (
+                <Panel.TableEmpty
+                  title='No triggers yet'
+                  description={
+                    canAdd
+                      ? 'Triggers run an automation at a given point of the timer lifecycle, like when an event starts or finishes.'
+                      : 'Create an automation definition first, then add a global trigger to decide when it should run.'
+                  }
+                  action={
+                    canAdd && (
+                      <Button variant='primary' onClick={openNewForm}>
+                        Create trigger <IoAdd />
+                      </Button>
+                    )
+                  }
+                />
+              )}
+              {triggers.map((trigger, index) => (
+                <TriggersListItem
+                  key={trigger.id}
+                  automations={automations}
+                  trigger={trigger}
+                  duplicate={duplicates?.includes(index)}
+                  handleEdit={() => openEditForm(trigger)}
+                  handleDelete={() => handleDelete(trigger.id)}
+                />
+              ))}
+              {deleteError && (
+                <tr>
+                  <td colSpan={5}>
+                    <Panel.Error>{deleteError}</Panel.Error>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </Panel.Table>
+        </Panel.Section>
+      </Panel.Card>
+    </Panel.Section>
   );
 }

@@ -1,5 +1,5 @@
-import { DndContext, closestCenter } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
+import { SortableContext, type SortingStrategy } from '@dnd-kit/sortable';
 import {
   type EntryId,
   Playback,
@@ -9,12 +9,14 @@ import {
   isOntimeGroup,
 } from 'ontime-types';
 import { Fragment, type HTMLProps, forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { TbFlagFilled } from 'react-icons/tb';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
+import EmptyRundown from '../../common/components/state/EmptyRundown';
 import { useEntryActionsContext } from '../../common/context/EntryActionsContext';
 import useAutomationSettings from '../../common/hooks-query/useAutomationSettings';
-import { useEntryCopy } from '../../common/stores/entryCopyStore';
+import { useSetEntryCopy } from '../../common/stores/entryCopyStore';
 import { RundownMetadataObject, lastMetadataKey } from '../../common/utils/rundownMetadata';
 import { AppMode } from '../../ontimeConfig';
 import QuickAddButtons from './entry-editor/quick-add-buttons/QuickAddButtons';
@@ -22,10 +24,11 @@ import QuickAddInline from './entry-editor/quick-add-cursor/QuickAddInline';
 import { useRundownCommands } from './hooks/useRundownCommands';
 import { useRundownDnd } from './hooks/useRundownDnd';
 import { useRundownKeyboard } from './hooks/useRundownKeyboard';
+import RundownDragPreview from './rundown-drag-preview/RundownDragPreview';
+import { getGroupDurationFit } from './rundown-event/rundownEvent.utils';
 import RundownGroup from './rundown-group/RundownGroup';
 import RundownGroupEnd from './rundown-group/RundownGroupEnd';
 import { filterVisibleEntries, makeSortableList } from './rundown.utils';
-import RundownEmpty from './RundownEmpty';
 import RundownEntry from './RundownEntry';
 import { useCollapsedGroups } from './useCollapsedGroups';
 import { useEditorFollowMode } from './useEditorFollowMode';
@@ -67,7 +70,7 @@ export default function Rundown({ order, flatOrder, entries, id, rundownMetadata
   const { getIsCollapsed, collapseGroup, expandGroup } = useCollapsedGroups(id);
 
   const entryActions = useEntryActionsContext();
-  const setEntryCopyId = useEntryCopy((state) => state.setEntryCopyId);
+  const setEntryCopyId = useSetEntryCopy();
 
   // cursor
   const { editorMode } = useEditorFollowMode();
@@ -209,6 +212,9 @@ export default function Rundown({ order, flatOrder, entries, id, rundownMetadata
   // gather presentation options
   const isEditMode = editorMode === AppMode.Edit;
 
+  const draggedEntry = dnd.activeId ? entries[dnd.activeId] : undefined;
+  const dropTarget = dnd.dropTarget;
+
   // gather rundown wide data
   const lastEntryId = order.at(-1);
 
@@ -219,6 +225,9 @@ export default function Rundown({ order, flatOrder, entries, id, rundownMetadata
   // Virtuoso item renderer
   const itemContent = useCallback(
     (index: number, entryId: EntryId) => {
+      const dropLineBefore = dropTarget?.id === entryId && dropTarget.placement === 'before';
+      const dropLineAfter = dropTarget?.id === entryId && dropTarget.placement === 'after';
+
       // Handle end-group pseudo entries
       const isEndGroup = entryId.startsWith('end-');
 
@@ -228,6 +237,7 @@ export default function Rundown({ order, flatOrder, entries, id, rundownMetadata
 
         return (
           <Fragment key={entryId}>
+            {dropLineBefore && <div className={style.dropLine} />}
             {isEditMode && parentMetadata?.groupEntries === 0 && (
               <QuickAddButtons
                 previousEventId={null}
@@ -236,6 +246,7 @@ export default function Rundown({ order, flatOrder, entries, id, rundownMetadata
               />
             )}
             <RundownGroupEnd key={entryId} id={entryId} colour={parentMetadata?.groupColour} />
+            {dropLineAfter && <div className={style.dropLine} />}
           </Fragment>
         );
       }
@@ -256,9 +267,11 @@ export default function Rundown({ order, flatOrder, entries, id, rundownMetadata
       const parentIdForBefore = entryMetadata.thisId !== entryMetadata.groupId ? entryMetadata.groupId : null;
       const parentIdForAfter = entryMetadata.groupId;
       const collapsed = isGroup ? getIsCollapsed(entry.id) : false;
+      const parentGroup = isOntimeEvent(entry) && entry.parent ? entries[entry.parent] : null;
 
       return (
         <Fragment key={entry.id}>
+          {dropLineBefore && <div className={style.dropLine} />}
           {/* QuickAddInline before the entry - edit mode only, if there is a cursor, if it is not the first entry */}
           {isEditMode && hasCursor && !isFirst && (
             <QuickAddInline placement='before' referenceEntryId={entry.id} parentGroup={parentIdForBefore} />
@@ -292,6 +305,7 @@ export default function Rundown({ order, flatOrder, entries, id, rundownMetadata
                   isRolling={playback === Playback.Roll}
                   totalGap={entryMetadata.totalGap}
                   isLinkedToLoaded={entryMetadata.isLinkedToLoaded}
+                  groupDurationFit={isOntimeGroup(parentGroup) ? getGroupDurationFit(parentGroup) : null}
                 />
               </div>
             </div>
@@ -300,6 +314,7 @@ export default function Rundown({ order, flatOrder, entries, id, rundownMetadata
           {isEditMode && hasCursor && !isLast && (
             <QuickAddInline placement='after' referenceEntryId={entry.id} parentGroup={parentIdForAfter} />
           )}
+          {dropLineAfter && <div className={style.dropLine} />}
         </Fragment>
       );
     },
@@ -314,23 +329,27 @@ export default function Rundown({ order, flatOrder, entries, id, rundownMetadata
       lastEntryId,
       handleCollapseGroup,
       automationsEnabled,
+      dropTarget,
     ],
   );
 
   if (sortableData.length < 1) {
-    return <RundownEmpty handleAddNew={(type: SupportedEntry) => entryActions.addEntry({ type })} />;
+    return (
+      <EmptyRundown handleAddNew={isEditMode ? (type: SupportedEntry) => entryActions.addEntry({ type }) : undefined} />
+    );
   }
 
   return (
     <div className={style.rundownContainer} ref={scrollRef} data-testid='rundown'>
       <DndContext
         onDragEnd={dnd.handleOnDragEnd}
-        onDragStart={dnd.collapseDraggedGroups}
-        onDragOver={dnd.expandOverGroup}
+        onDragStart={dnd.handleOnDragStart}
+        onDragCancel={dnd.handleOnDragCancel}
+        onDragOver={dnd.handleOnDragOver}
         sensors={dnd.sensors}
         collisionDetection={closestCenter}
       >
-        <SortableContext items={sortableData} strategy={verticalListSortingStrategy}>
+        <SortableContext items={sortableData} strategy={noSortingStrategy}>
           <Virtuoso
             ref={virtuosoRef}
             data={visibleData}
@@ -357,10 +376,26 @@ export default function Rundown({ order, flatOrder, entries, id, rundownMetadata
             }}
           />
         </SortableContext>
+        {/* Portal the overlay so it survives virtualization and layout clipping. */}
+        {createPortal(
+          <DragOverlay dropAnimation={null}>
+            {draggedEntry && (
+              <RundownDragPreview
+                entry={draggedEntry}
+                eventIndex={isOntimeEvent(draggedEntry) ? metadata[draggedEntry.id]?.eventIndex : undefined}
+                isValidDrop={dnd.isValidDrop}
+              />
+            )}
+          </DragOverlay>,
+          document.body,
+        )}
       </DndContext>
     </div>
   );
 }
+
+// Keep entries static; the overlay and drop line indicate the destination.
+const noSortingStrategy: SortingStrategy = () => null;
 
 // Virtuoso components - extracted to prevent recreation on every render
 const VirtuosoListComponent = forwardRef<HTMLDivElement, HTMLProps<HTMLDivElement>>(({ children, ...props }, ref) => (

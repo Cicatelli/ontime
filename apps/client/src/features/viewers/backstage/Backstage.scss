@@ -39,7 +39,19 @@
     font-size: $header-font-size;
     font-weight: 600;
     display: flex;
+    align-items: center;
     gap: 1rem;
+  }
+
+  .project-header__brand {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 0;
+  }
+
+  .project-header__brand--without-logo {
+    align-self: baseline;
   }
 
   .logo {
@@ -193,24 +205,8 @@
     flex-direction: column;
     overflow-y: auto;
 
-    .project-header {
-      flex-direction: column;
-      position: relative;
-      gap: 0.5rem;
-    }
-
-    .logo img {
-      height: min(50px, 10vh);
-    }
-
     .timer-group {
       flex-wrap: wrap;
-    }
-
-    .clock-container {
-      position: absolute;
-      top: 0;
-      right: 0;
     }
 
     .schedule-nav-container {

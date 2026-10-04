@@ -4,7 +4,7 @@
   background-color: $gray-1250;
   padding: 0.5rem 1rem;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
   font-size: $inner-section-text-size;
   border-radius: 3px 3px 0 0;
@@ -12,10 +12,11 @@
   transition: background-color 0.2s ease-in-out;
 
   &[data-background-rundown='true'] {
-    background-color: rgba($ontime-color, 0.5);
+    background-color: $bg-active;
 
     .apart::before {
       content: 'BACKGROUND EDIT';
+      order: 1;
       color: $ui-white;
       animation: blinker 2s ease-in-out infinite;
     }
@@ -55,15 +56,56 @@
 
 .inline {
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem 1.5rem;
+  max-width: min(90vw, 640px);
+  max-height: 70vh;
+  overflow-y: auto;
+
+  @media (max-width: $min-tablet) {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
 }
 
-.apart {
+.optionsLabel {
+  @media (max-width: $min-tablet) {
+    display: none;
+  }
+}
+
+// sharing lives in the toolbar, and moves into the options menu on small screens
+.shareToolbar {
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 1rem;
+
+  @media (max-width: $min-tablet) {
+    display: none;
+  }
+}
+
+.shareMenu {
+  display: none;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  @media (max-width: $min-tablet) {
+    display: flex;
+  }
+}
+
+.apart {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  row-gap: 0.5rem;
 }
 
 /** styles should match RundownHeader.module.scss */

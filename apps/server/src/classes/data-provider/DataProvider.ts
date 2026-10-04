@@ -1,5 +1,5 @@
-import type { Low } from 'lowdb';
-import { JSONFilePreset } from 'lowdb/node';
+import { Low } from 'lowdb';
+import { JSONFile } from 'lowdb/node';
 import {
   AutomationSettings,
   CustomFields,
@@ -12,7 +12,6 @@ import {
   ViewSettings,
 } from 'ontime-types';
 
-import { isTest } from '../../setup/environment.js';
 import { shouldCrashDev } from '../../utils/development.js';
 import { isPath } from '../../utils/fileManagement.js';
 import { safeMerge } from './DataProvider.utils.js';
@@ -20,6 +19,8 @@ import { safeMerge } from './DataProvider.utils.js';
 type ReadonlyPromise<T> = Promise<Readonly<T>>;
 
 let db = {} as Low<DatabaseModel>;
+/** file of the loaded project, which the delayed save writes to */
+let loadedFile = '';
 
 /**
  * Initialises the JSON adapter to persist data to a file
@@ -27,14 +28,31 @@ let db = {} as Low<DatabaseModel>;
 export async function initPersistence(filePath: string, fallbackData: DatabaseModel) {
   // eslint-disable-next-line no-unused-labels -- dev code path
   DEV: shouldCrashDev(!isPath(filePath), 'initPersistence should be called with a path');
-  const newDb = await JSONFilePreset<DatabaseModel>(filePath, fallbackData);
 
-  // Read the database to initialize it
+  // the delayed save writes whichever file is current when it runs, so the previous file is saved now
+  await savePending();
+
+  // not JSONFilePreset, which silently keeps data in memory when NODE_ENV is test
+  const newDb = new Low<DatabaseModel>(new JSONFile<DatabaseModel>(filePath), fallbackData);
+
+  // write the given data and read it back, so the db holds its own copy and does not alias the caller's object
   newDb.data = fallbackData;
   await newDb.write();
   await newDb.read();
 
   db = newDb;
+  loadedFile = filePath;
+}
+
+/**
+ * Returns the file of the loaded project with every change saved to it
+ * Changes are saved with a delay, so the loaded project's file must only be read through here
+ */
+export async function getFileToRead(): Promise<string> {
+  // a project switch while saving changes the loaded file, the caller asked for this one
+  const file = loadedFile;
+  await savePending();
+  return file;
 }
 
 export function getDataProvider() {
@@ -101,8 +119,16 @@ function getCustomFields(): Readonly<CustomFields> {
   return db.data.customFields;
 }
 
+/**
+ * Stores a rundown, replacing any existing entry for the same key.
+ * Takes ownership of `newData` and stores it by reference - the caller must not mutate it
+ * afterward. Every call site either hands over a freshly-built object it never touches again,
+ * or (for the loaded rundown) the cache's own long-lived object, which is already the single
+ * source of truth for that data - aliasing it here costs nothing and avoids a second full
+ * deep copy of the rundown on every commit.
+ */
 async function setRundown(rundownKey: string, newData: Rundown): ReadonlyPromise<ProjectRundowns> {
-  db.data.rundowns[rundownKey] = structuredClone(newData);
+  db.data.rundowns[rundownKey] = newData;
   await persist();
   return db.data.rundowns;
 }
@@ -189,8 +215,6 @@ const writeDelayMs = 3000; // 3 seconds
  * Multiple rapid calls will be coalesced into a single write
  */
 async function persist() {
-  if (isTest) return;
-
   // Cancel any pending write and reschedule
   if (pendingWrite) {
     clearTimeout(pendingWrite);
@@ -217,11 +241,20 @@ async function persist() {
 }
 
 /**
+ * Saves changes still waiting for the delayed save
+ */
+async function savePending() {
+  if (pendingWrite) {
+    await flushPendingWrites();
+  } else if (activeWrite) {
+    await activeWrite;
+  }
+}
+
+/**
  * Force immediate write of any pending changes
  */
 export async function flushPendingWrites() {
-  if (isTest) return;
-
   if (pendingWrite) {
     clearTimeout(pendingWrite);
     pendingWrite = null;
@@ -232,5 +265,10 @@ export async function flushPendingWrites() {
     await activeWrite;
   }
 
-  await db.write();
+  try {
+    activeWrite = db.write();
+    await activeWrite;
+  } finally {
+    activeWrite = null;
+  }
 }

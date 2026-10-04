@@ -13,20 +13,27 @@ import {
   IoTrash,
   IoUnlink,
 } from 'react-icons/io5';
-import { TbFlagFilled, TbListNumbers } from 'react-icons/tb';
+import { TbClockPin, TbFlagFilled, TbListNumbers } from 'react-icons/tb';
 
 import { useEntryActionsContext } from '../../../common/context/EntryActionsContext';
+import { useRundownScope } from '../../../common/context/RundownScopeContext';
 import { useContextMenu } from '../../../common/hooks/useContextMenu';
-import { useEntryCopy } from '../../../common/stores/entryCopyStore';
+import { useIsEntryCopyTarget } from '../../../common/stores/entryCopyStore';
 import { deviceAlt, deviceMod } from '../../../common/utils/deviceUtils';
 import { cx, getAccessibleColour } from '../../../common/utils/styleUtils';
 import { useRenumberCuesDialogStore } from '../renumber-cues-dialog/RenumberCuesDialog';
 import { useEventIdSwapping } from '../useEventIdSwapping';
 import { getSelectionMode, useEventSelection } from '../useEventSelection';
+import { GroupDurationFit } from './rundownEvent.utils';
 import RundownEventInner from './RundownEventInner';
 import RundownIndicators from './RundownIndicators';
 
 import style from './RundownEvent.module.scss';
+
+const groupDurationFitDescription = {
+  increase: 'Increase event duration to fit the group target',
+  decrease: 'Decrease event duration to fit the group target',
+};
 
 interface RundownEventProps {
   eventId: EntryId;
@@ -50,6 +57,7 @@ interface RundownEventProps {
   isNext: boolean;
   skip: boolean;
   parent: EntryId | null;
+  groupDurationFit: GroupDurationFit;
   loaded: boolean;
   hasCursor: boolean;
   playback?: Playback;
@@ -84,6 +92,7 @@ export default function RundownEvent({
   isNext,
   skip = false,
   parent,
+  groupDurationFit,
   loaded,
   hasCursor,
   playback,
@@ -102,20 +111,22 @@ export default function RundownEvent({
   const clearSelectedEventId = useEventIdSwapping((state) => state.clearSelectedEventId);
   const openRenumberDialog = useRenumberCuesDialogStore((state) => state.onOpen);
 
-  const { updateEntry, batchUpdateEvents, clone, deleteEntry, groupEntries, swapEvents } = useEntryActionsContext();
+  const { updateEntry, batchUpdateEvents, clone, deleteEntry, groupEntries, swapEvents, matchGroupDuration } =
+    useEntryActionsContext();
 
   const isSelected = useEventSelection((state) => state.selectedEvents.has(eventId));
   const unselect = useEventSelection((state) => state.unselect);
   const clearSelectedEvents = useEventSelection((state) => state.clearSelectedEvents);
   const selectEntry = useEventSelection((state) => state.setSelectedEvents);
 
-  const selectedEvents = useEventSelection((state) => state.selectedEvents);
-  const entryCopyId = useEntryCopy((state) => state.entryCopyId);
+  const { selectionStore } = useRundownScope();
+  const isCopyTarget = useIsEntryCopyTarget(eventId);
 
-  const handleRef = useRef<null | HTMLSpanElement>(null);
+  const handleRef = useRef<null | HTMLDivElement>(null);
 
-  const [onContextMenu] = useContextMenu<HTMLDivElement>(() =>
-    selectedEvents.size > 1
+  const [onContextMenu] = useContextMenu<HTMLDivElement>(() => {
+    const { selectedEvents } = selectionStore.getState();
+    return selectedEvents.size > 1
       ? [
           {
             type: 'item',
@@ -172,6 +183,17 @@ export default function RundownEvent({
               updateEntry({ id: eventId, flag: !flag });
             },
           },
+          {
+            type: 'item',
+            label: 'Match Group Target Duration',
+            description: groupDurationFit ? groupDurationFitDescription[groupDurationFit] : '',
+            icon: TbClockPin,
+            onClick: () => {
+              if (!parent) return;
+              matchGroupDuration(eventId);
+            },
+            disabled: groupDurationFit === null,
+          },
           { type: 'divider' },
           {
             type: 'item',
@@ -208,8 +230,8 @@ export default function RundownEvent({
               unselect(eventId);
             },
           },
-        ],
-  );
+        ];
+  });
 
   const {
     isDragging,
@@ -229,6 +251,7 @@ export default function RundownEvent({
 
   const dragStyle = {
     zIndex: isDragging ? 2 : 'inherit',
+    opacity: isDragging ? 0.5 : undefined,
     transform: CSS.Translate.toString(transform),
     transition,
   };
@@ -259,7 +282,7 @@ export default function RundownEvent({
     playback && style[playback],
     isSelected && style.selected,
     hasCursor && style.hasCursor,
-    entryCopyId === eventId && style.copyTarget,
+    isCopyTarget && style.copyTarget,
   ]);
 
   const handleFocusClick = (event: MouseEvent) => {
@@ -268,7 +291,7 @@ export default function RundownEvent({
     // event.button === 2 is a right-click
     // disable selection if the user selected events and right clicks
     // so the context menu shows up
-    if (selectedEvents.size > 1 && event.button === 2) {
+    if (selectionStore.getState().selectedEvents.size > 1 && event.button === 2) {
       return;
     }
 
@@ -288,12 +311,13 @@ export default function RundownEvent({
       onClick={handleFocusClick}
       onContextMenu={onContextMenu}
       data-testid='rundown-event'
+      data-selected={isSelected}
       {...(isPlaying ? { 'data-running': true } : {})}
     >
       <RundownIndicators timeStart={timeStart} delay={delay} gap={gap} isNextDay={isNextDay} />
 
-      <div className={style.binder} style={{ ...binderColours }} tabIndex={-1}>
-        <span className={style.drag} ref={handleRef} {...dragAttributes} {...dragListeners}>
+      <div className={style.binder} style={{ ...binderColours }} ref={handleRef} {...dragAttributes} {...dragListeners}>
+        <span className={style.drag}>
           <IoReorderTwo />
         </span>
         <span className={style.cue}>{cue}</span>

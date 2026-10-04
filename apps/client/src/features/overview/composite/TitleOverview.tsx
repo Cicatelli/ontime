@@ -1,21 +1,24 @@
+import { useLoadedRundownAuxData } from '../../../common/hooks-query/useLoadedRundown';
 import useProjectData from '../../../common/hooks-query/useProjectData';
-import { useRundownAuxData } from '../../../common/hooks-query/useRundown';
 
 import style from './TitleOverview.module.scss';
 
 export default function TitleOverview() {
   'use memo';
   const { data: projectData } = useProjectData();
-  const { data: rundownData } = useRundownAuxData();
+  const { data: rundownData } = useLoadedRundownAuxData();
 
-  if (!projectData.title && !rundownData.title) {
+  const projectTitle = projectData.title.trim();
+  const rundownTitle = rundownData.title.trim();
+
+  if (!projectTitle && !rundownTitle) {
     return null;
   }
 
   return (
-    <div>
-      <div className={style.title}>{projectData.title}</div>
-      <div className={style.description}>{rundownData.title}</div>
+    <div className={style.titleOverview}>
+      {projectTitle && <div className={style.project}>{projectTitle}</div>}
+      {rundownTitle && <div className={style.rundown}>{rundownTitle}</div>}
     </div>
   );
 }

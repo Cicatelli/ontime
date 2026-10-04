@@ -1,14 +1,18 @@
 import { test as base, expect } from '@playwright/test';
 
-// fail tests which contain errors
+export { expect };
+
+// fail tests which contain errors in any page of the test context
+// contexts created manually (ie: browser.newContext() in hooks) are not covered
 export const test = base.extend({
-  page: async ({ page }, use) => {
-    const messages = [];
-    page.on('pageerror', (exception) => {
+  context: async ({ context }, use) => {
+    const messages: Error[] = [];
+    context.on('weberror', (webError) => {
+      const exception = webError.error();
       console.log(`Uncaught exception: "${exception.message}"`);
       messages.push(exception);
     });
-    await use(page);
+    await use(context);
     expect(messages).toEqual([]);
   },
 });

@@ -1,6 +1,12 @@
 .outerColumn {
+  display: flex;
+  flex-direction: column;
   gap: 2rem;
-  margin-bottom: 2rem;
+  font-size: calc(1rem - 1px);
+  color: $ui-white;
+
+  padding-block: 0.5rem;
+  padding-right: 0.5rem;
 
   h3 {
     font-size: 1rem;
@@ -20,9 +26,7 @@
 }
 
 .titleSection,
-.filterSection,
-.oscSection,
-.httpSection {
+.filterSection {
   display: grid;
   grid-gap: 0.5rem;
 
@@ -33,10 +37,9 @@
 
 .titleSection,
 .ruleSection,
-.filterSection,
-.oscSection,
-.httpSection {
-  label, div {
+.filterSection {
+  label,
+  div {
     // we use the div as non-interactive placeholder for button cells
     // it needs to match the size of the label element
     font-size: calc(1rem - 3px);
@@ -46,24 +49,90 @@
   }
 }
 
-
 .titleSection {
   grid-template-columns: 1fr;
 }
 
 .filterSection {
-  grid-template-columns: 2fr 1fr 2fr auto;
+  grid-template-columns: minmax(11rem, 1.25fr) minmax(10rem, 1fr) minmax(13rem, 1.75fr) auto;
+  align-items: end;
 }
 
-.oscSection {
-  grid-template-columns: 9rem 5rem 3fr 4fr auto;
+@media (max-width: $min-tablet) {
+  .filterSection {
+    grid-template-columns: 1fr 1fr auto;
+
+    label:last-of-type {
+      grid-column: 1 / -1;
+    }
+  }
 }
 
-.httpSection {
-  grid-template-columns: 1fr auto;
-}
-
-.outputCard {
+.card {
+  border: 1px solid $white-10;
   border-left: 0.25rem solid $gray-1200;
-  padding-left: 0.5rem;
+  border-radius: $component-border-radius-md;
+  background-color: $black-10;
+
+  label {
+    display: block;
+    font-size: calc(1rem - 3px);
+    color: $label-gray;
+  }
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid $white-10;
+}
+
+.cardSummary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: $secondary-text-gray;
+  font-size: $aux-text-size;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardBody {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.5rem 0.75rem;
+  padding: 0.75rem;
+}
+
+.spanFull {
+  grid-column: 1 / -1;
+}
+
+.testOk {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: $green-400;
+  font-size: $aux-text-size;
+}
+
+.testError {
+  padding: 0 0.75rem 0.5rem;
+}
+
+.tagOsc {
+  background-color: $blue-1000;
+  color: $blue-300;
+}
+
+.tagHttp {
+  background-color: $green-1000;
+  color: $green-300;
+}
+
+.tagOntime {
+  background-color: $gray-1000;
+  color: $gray-200;
 }
