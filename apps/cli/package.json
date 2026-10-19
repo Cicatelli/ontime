@@ -1,6 +1,6 @@
 {
   "name": "@getontime/cli",
-  "version": "4.14.1",
+  "version": "4.15.0",
   "author": "Carlos Valente",
   "description": "Time keeping for live events",
   "repository": "https://github.com/cpvalente/ontime",
@@ -9,7 +9,7 @@
     "ontime",
     "timer"
   ],
-  "license": "AGPL-3.0-only",
+  "license": "GPL-3.0-or-later",
   "main": "main.js",
   "bin": {
     "ontime": "main.js"

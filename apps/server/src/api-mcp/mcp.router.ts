@@ -1,11 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node';
 import express from 'express';
 import type { Request, Response, Router } from 'express';
 import { LogOrigin } from 'ontime-types';
 
-import { logger } from '../classes/Logger.js';
+import * as logger from '../api-data/logs/logs.service.js';
 import { createMcpServer } from './mcp.server.js';
 
 export const mcpRouter: Router = express.Router();
@@ -13,7 +13,7 @@ export const mcpRouter: Router = express.Router();
 mcpRouter.post('/', async (req, res) => {
   // A new Server instance is created per request — required for stateless mode where
   // each POST is independent and concurrent requests must not share transport state.
-  const transport = new StreamableHTTPServerTransport({
+  const transport = new NodeStreamableHTTPServerTransport({
     sessionIdGenerator: undefined, // stateless: no session tracking
     enableJsonResponse: true,
   });
@@ -35,7 +35,7 @@ mcpRouter.post('/', async (req, res) => {
     await transport.handleRequest(req as IncomingMessage, res as ServerResponse, req.body);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.error(LogOrigin.Server, `MCP request failed: ${message}`);
+    logger.error(LogOrigin.Server, 'MCP request failed', { error: message });
     if (!res.headersSent) {
       res.status(500).json({ jsonrpc: '2.0', error: { code: -32603, message }, id: req.body?.id ?? null });
     }

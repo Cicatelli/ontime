@@ -1,7 +1,29 @@
-import { OntimeEntry, OntimeEvent, OntimeGroup, SupportedEntry } from 'ontime-types';
+import {
+  OffsetMode,
+  OntimeEntry,
+  OntimeEvent,
+  OntimeGroup,
+  OntimeReport,
+  Playback,
+  SupportedEntry,
+} from 'ontime-types';
+import { MILLIS_PER_HOUR, MILLIS_PER_MINUTE } from 'ontime-utils';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 import { ExtendedEntry } from '../../common/utils/rundownMetadata';
-import { CountdownTarget, groupSubscriptionTargets, resolveSubscriptionTarget } from './countdown.utils';
+import {
+  CountdownTarget,
+  extendEventData,
+  getCountdownCandidates,
+  getIsLive,
+  getOrderedSubscriptions,
+  groupSubscriptionTargets,
+  isOutsideRange,
+  makeSubscriptionsUrl,
+  resolveSubscriptionTarget,
+  useSubscriptionDisplayData,
+} from './countdown.utils';
 
 /**
  * Minimal builders for the extended (metadata enriched) entries the countdown view consumes.
@@ -211,4 +233,144 @@ describe('groupSubscriptionTargets()', () => {
       { group: null, events: [e1] },
     ]);
   });
+});
+
+describe('getIsLive()', () => {
+  it('is live when the entry is the loaded one and playback has started', () => {
+    expect(getIsLive('a', 'a', Playback.Play)).toBe(true);
+    expect(getIsLive('a', 'a', Playback.Pause)).toBe(true);
+  });
+
+  it('is not live when the entry is only armed, or is not the loaded one', () => {
+    expect(getIsLive('a', 'a', Playback.Armed)).toBe(false);
+    expect(getIsLive('a', 'b', Playback.Play)).toBe(false);
+    expect(getIsLive('a', null, Playback.Play)).toBe(false);
+  });
+});
+
+describe('makeSubscriptionsUrl()', () => {
+  it('adds each subscription as a sub parameter', () => {
+    const url = makeSubscriptionsUrl('http://localhost:4001/countdown', ['a', 'b']);
+    expect(url.searchParams.getAll('sub')).toStrictEqual(['a', 'b']);
+  });
+
+  it('replaces previous subscriptions and keeps the other view settings', () => {
+    const url = makeSubscriptionsUrl('http://localhost:4001/countdown?sub=old&hideClock=true&sub=older', ['new']);
+    expect(url.searchParams.getAll('sub')).toStrictEqual(['new']);
+    expect(url.searchParams.get('hideClock')).toBe('true');
+  });
+
+  it('removes all subscriptions when given none', () => {
+    const url = makeSubscriptionsUrl('http://localhost:4001/countdown?sub=old', []);
+    expect(url.searchParams.has('sub')).toBe(false);
+  });
+});
+
+describe('getOrderedSubscriptions()', () => {
+  it('keeps the rundown order, regardless of the order of subscription', () => {
+    const rundown = [makeEvent({ id: 'a' }), makeEvent({ id: 'b' }), makeEvent({ id: 'c' })];
+    expect(getOrderedSubscriptions(['c', 'a'], rundown).map((event) => event.id)).toStrictEqual(['a', 'c']);
+  });
+
+  it('ignores subscriptions to entries which are no longer in the rundown', () => {
+    const rundown = [makeEvent({ id: 'a' })];
+    expect(getOrderedSubscriptions(['deleted', 'a'], rundown).map((event) => event.id)).toStrictEqual(['a']);
+  });
+});
+
+describe('isOutsideRange()', () => {
+  it('tolerates a difference of up to a minute', () => {
+    expect(isOutsideRange(0, MILLIS_PER_MINUTE)).toBe(false);
+    expect(isOutsideRange(MILLIS_PER_MINUTE, 0)).toBe(false);
+  });
+
+  it('flags differences larger than a minute in either direction', () => {
+    expect(isOutsideRange(0, MILLIS_PER_MINUTE + 1)).toBe(true);
+    expect(isOutsideRange(MILLIS_PER_MINUTE + 1, 0)).toBe(true);
+  });
+});
+
+describe('extendEventData()', () => {
+  const start = 10 * MILLIS_PER_HOUR;
+  const hour = MILLIS_PER_HOUR;
+  const report: OntimeReport = {
+    a: {
+      startedAt: start,
+      startedAtDay: 0,
+      endedAt: 10.5 * hour,
+      endedAtDay: 0,
+      scheduledStart: start,
+      scheduledDay: 0,
+      scheduledDuration: hour,
+    },
+    last: {
+      startedAt: 11 * hour,
+      startedAtDay: 0,
+      endedAt: 12 * hour,
+      endedAtDay: 0,
+      scheduledStart: 11 * hour,
+      scheduledDay: 0,
+      scheduledDuration: hour,
+    },
+  };
+  const extend = (event: CountdownTarget) => extendEventData(event, 0, null, null, 0, OffsetMode.Absolute, report);
+
+  it('reports when the event ended, according to the report', () => {
+    const event = makeEvent({ id: 'a', timeStart: start, timeEnd: start + hour, duration: hour });
+    expect(extend(event).endedAt).toBe(10.5 * hour);
+  });
+
+  it('has no end time for events which have not run', () => {
+    const event = makeEvent({ id: 'never-played', timeStart: start, timeEnd: start + hour, duration: hour });
+    expect(extend(event).endedAt).toBeNull();
+  });
+
+  it('reports a group as ended when its last child ended', () => {
+    const group = { ...makeEvent({ id: 'group', timeStart: start, duration: hour }), isGroup: true, reportId: 'last' };
+    expect(extend(group).endedAt).toBe(12 * hour);
+  });
+
+  it('expects an event on time to start and end as scheduled', () => {
+    const event = makeEvent({ id: 'a', timeStart: start, timeEnd: start + hour, duration: hour });
+    expect(extend(event)).toMatchObject({ expectedStart: start, expectedEnd: start + hour });
+  });
+});
+
+vi.mock('../../common/hooks/useSocket', () => ({
+  useCountdownSocket: () => ({ playback: Playback.Play, current: 1000, clock: 0 }),
+}));
+
+vi.mock('../../translation/TranslationProvider', () => ({
+  useTranslation: () => ({ getLocalizedString: (key: string) => key }),
+}));
+
+describe('skipped countdown subscriptions', () => {
+  it('keeps skipped events available for selection and saved subscriptions', () => {
+    const skipped = makeEvent({ id: 'skipped', skip: true });
+    const playable = makeEvent({ id: 'playable' });
+    const candidates = getCountdownCandidates([skipped, playable]);
+    expect(candidates).toEqual([skipped, playable]);
+    expect(getOrderedSubscriptions(['skipped'], candidates)).toEqual([skipped]);
+  });
+
+  it('does not offer groups with only skipped children as countdown targets', () => {
+    const group = makeGroup({ id: 'group' });
+    const skipped = makeEvent({ parent: 'group', skip: true });
+    expect(getCountdownCandidates([group, skipped])).toEqual([skipped]);
+    expect(resolveSubscriptionTarget(group, [group, skipped])).toBeNull();
+  });
+
+  it.each([{ isLoaded: true }, { isPast: true }, {}])(
+    'shows skipped status without a timer regardless of runtime state: %j',
+    (state) => {
+      const event = { ...makeEvent({ skip: true, ...state }), expectedStart: 10000, endedAt: null };
+      let display: ReturnType<typeof useSubscriptionDisplayData> | undefined;
+      function Status() {
+        display = useSubscriptionDisplayData(event);
+        return createElement('div', null, display.statusDisplay, display.timeDisplay);
+      }
+      renderToStaticMarkup(createElement(Status));
+      expect(display).toEqual({ status: 'skipped', statusDisplay: 'countdown.skipped', timeDisplay: '' });
+    },
+  );
 });
