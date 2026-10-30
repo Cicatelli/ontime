@@ -36,7 +36,18 @@ export function handleLinks(
 ) {
   // we handle the link manually
   event?.preventDefault();
+  openLink(getAppUrl(location, externalServerUrl, externalBaseURI));
+}
 
+/**
+ * The full URL of a page of this Ontime app, respecting Ontime Clouds base URL
+ * serverUrl and baseURI are used for testing
+ */
+export function getAppUrl(
+  location: string,
+  externalServerUrl: string = serverURL,
+  externalBaseURI: string = baseURI,
+): string {
   const destination = new URL(externalServerUrl);
   // split off any query string so it is not encoded into the pathname
   const [pathname, search] = location.split('?');
@@ -44,7 +55,7 @@ export function handleLinks(
   if (search) {
     destination.search = search;
   }
-  openLink(destination.toString());
+  return destination.toString();
 }
 
 export function linkToOtherHost(

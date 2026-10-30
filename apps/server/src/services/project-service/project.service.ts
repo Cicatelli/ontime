@@ -12,7 +12,7 @@ import { parseRundowns } from '../../api-data/rundown/rundown.parser.js';
 import { initRundown, mergeCustomFields } from '../../api-data/rundown/rundown.service.js';
 import { getDataProvider, getFileToRead, initPersistence } from '../../classes/data-provider/DataProvider.js';
 import { safeMerge } from '../../classes/data-provider/DataProvider.utils.js';
-import { makeNewProject } from '../../models/dataModel.js';
+import { makeNewProject, makeProjectId } from '../../models/dataModel.js';
 import { demoDb } from '../../models/demoProject.js';
 import { config } from '../../setup/config.js';
 import { publicDir } from '../../setup/index.js';
@@ -26,13 +26,16 @@ import {
   generateUniqueFileName,
   getFileNameFromPath,
   removeFileExtension,
+  writeToFile,
 } from '../../utils/fileManagement.js';
 import { getLastLoaded, isLastLoadedProject, setLastLoaded } from '../app-state-service/appState.service.js';
 import { auxTimerService } from '../aux-timer-service/auxTimer.service.js';
 import { notifyChange } from '../change-service/change.service.js';
 import { runtimeService } from '../runtime-service/runtime.service.js';
+import { applyTeleprompterSettings } from '../teleprompter-service/teleprompter.service.js';
 import {
   doesProjectExist,
+  duplicateLogo,
   getPathToProject,
   getProjectFiles,
   moveCorruptFile,
@@ -116,7 +119,7 @@ async function loadProject(projectData: DatabaseModel, fileName: string, rundown
  */
 export async function loadDemoProject(): Promise<string> {
   populateOntimeLogo();
-  return createProject(config.demoProject, demoDb);
+  return createProject(config.demoProject, { ...demoDb, projectId: makeProjectId() });
 }
 
 /**
@@ -263,6 +266,7 @@ export async function getProjectFileToRead(filename: string): Promise<string | n
 
 /**
  * Duplicates an existing project file
+ * The duplicate gets its own copy of the logo, so changing the logo in one project does not delete the other's
  */
 export async function duplicateProjectFile(originalFile: string, newFilename: string) {
   const projectFilePath = await getProjectFileToRead(originalFile);
@@ -275,9 +279,14 @@ export async function duplicateProjectFile(originalFile: string, newFilename: st
     throw new Error(`Project file with name ${newFilename} already exists`);
   }
 
+  const projectFile = await parseJsonFile(projectFilePath);
+  if (projectFile.project?.logo) {
+    projectFile.project.logo = await duplicateLogo(projectFile.project.logo);
+  }
+  projectFile.projectId = makeProjectId();
+
   const pathToDuplicate = getPathToProject(newFilename);
-  await copyFile(projectFilePath, pathToDuplicate);
-  return;
+  await writeToFile(pathToDuplicate, JSON.stringify(projectFile, null, 2));
 }
 
 /**
@@ -354,8 +363,8 @@ export async function deleteProjectFile(filename: string) {
 export async function patchCurrentProject(data: Partial<DatabaseModel>) {
   runtimeService.stop();
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars  -- we need to remove the fields before merging
-  const { rundowns, customFields, ...rest } = data;
+  // these sections are parsed and applied on their own, the rest is merged as it is
+  const { rundowns, customFields, teleprompter, ...rest } = data;
 
   // we can pass some stuff straight to the data provider
   // callers list every section, so we only merge when a section has a value
@@ -366,6 +375,10 @@ export async function patchCurrentProject(data: Partial<DatabaseModel>) {
 
   if (rest.settings) {
     auxTimerService.loadNames(getDataProvider().getSettings().auxTimerNames);
+  }
+  // the script is cut from these settings, so they go where the settings endpoint sends them
+  if (teleprompter) {
+    await applyTeleprompterSettings(teleprompter);
   }
 
   // the rundown depends on custom fields

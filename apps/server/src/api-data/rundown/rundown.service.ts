@@ -23,7 +23,9 @@ import {
   generateId,
   getErrorMessage,
   getInsertAfterId,
+  renameScriptSource,
   resolveInsertParent,
+  validateRundownTitle,
 } from 'ontime-utils';
 
 import { getDataProvider } from '../../classes/data-provider/DataProvider.js';
@@ -41,9 +43,16 @@ import {
   rundownCache,
   rundownMutation,
 } from './rundown.dao.js';
+import {
+  CustomFieldExistsError,
+  CustomFieldNotFoundError,
+  CustomFieldTypeChangeError,
+  InvalidRundownTitleError,
+} from './rundown.errors.js';
 import { parseRundown, sanitiseCustomFields } from './rundown.parser.js';
 import {
   cloneRundown,
+  getDuplicatedRundownTitle,
   generateEvent,
   getFirstInsertId,
   getIntegerAndFraction,
@@ -462,6 +471,7 @@ export async function ungroupEntries(rundownId: string, groupId: EntryId): Promi
 /**
  * Adds a new custom field to the project
  * @throws if the label is missing or invalid
+ * @throws if the label already exists
  */
 export async function createCustomField(customField: CustomField): Promise<CustomFields> {
   const key = customFieldLabelToKey(customField.label);
@@ -474,7 +484,7 @@ export async function createCustomField(customField: CustomField): Promise<Custo
 
   // check if label already exists
   if (Object.hasOwn(customFields, key)) {
-    throw new Error('Label already exists');
+    throw new CustomFieldExistsError(customField.label);
   }
 
   customFieldMutation.add(customFields, key, customField);
@@ -510,8 +520,6 @@ async function updateBackgroundRundowns(loadedRundownId: string, mutate: (rundow
  * In practice users can only change the label and the colour of the field
  * @throws if the field does not exist
  * @throws if the field type is changed
- * @throws if the label is missing or invalid
- * @throws if the new label already exists
  */
 export async function editCustomField(key: CustomFieldKey, newField: Partial<CustomField>): Promise<CustomFields> {
   const { customFields, rundown, commit } = createTransaction({
@@ -520,13 +528,13 @@ export async function editCustomField(key: CustomFieldKey, newField: Partial<Cus
   });
 
   if (!(key in customFields)) {
-    throw new Error('Could not find label');
+    throw new CustomFieldNotFoundError(key);
   }
 
   const existingField = customFields[key];
   // if user provides a type, it must be the same from before
   if (newField.type && existingField.type !== newField.type) {
-    throw new Error('Change of field type is not allowed');
+    throw new CustomFieldTypeChangeError();
   }
 
   const { oldKey, newKey } = customFieldMutation.edit(customFields, key, existingField, newField);
@@ -550,12 +558,26 @@ export async function editCustomField(key: CustomFieldKey, newField: Partial<Cus
       customFieldMutation.renameUsages(backgroundRundown, oldKey, newKey),
     );
   }
+  const didChangeScriptSource = didChangeKey && (await renameScriptSourceUsage(oldKey, newKey));
 
   // schedule the side effects
   notifyChange(RefetchKey.CustomFields);
+  if (didChangeScriptSource) notifyChange(RefetchKey.Teleprompter);
   notifyChange(RefetchKey.Rundown, revision);
 
   return resultCustomFields;
+}
+
+/**
+ * The teleprompter's script source is a usage of a custom field, renamed or reset with it
+ * @returns whether the source changed
+ */
+async function renameScriptSourceUsage(oldKey: CustomFieldKey, newKey: CustomFieldKey | null): Promise<boolean> {
+  const settings = getDataProvider().getTeleprompterSettings();
+  const script = renameScriptSource(settings.script, oldKey, newKey);
+  if (script === settings.script) return false;
+  await getDataProvider().setTeleprompterSettings({ ...settings, script });
+  return true;
 }
 
 /**
@@ -583,9 +605,11 @@ export async function deleteCustomField(key: CustomFieldKey): Promise<CustomFiel
   await updateBackgroundRundowns(rundown.id, (backgroundRundown) =>
     customFieldMutation.removeUsages(backgroundRundown, key),
   );
+  const didChangeScriptSource = await renameScriptSourceUsage(key, null);
 
   // schedule the side effects
   notifyChange(RefetchKey.CustomFields);
+  if (didChangeScriptSource) notifyChange(RefetchKey.Teleprompter);
   notifyChange(RefetchKey.Rundown, revision);
 
   return resultCustomFields;
@@ -676,6 +700,10 @@ export async function replaceRundown(rundownId: string, incoming: Readonly<Rundo
 }
 
 export async function createNewRundown(title: string) {
+  const titleError = validateRundownTitle(title);
+  if (titleError) throw new InvalidRundownTitleError(titleError);
+  title = title.trim();
+
   const emptyRundown = makeNewRundown();
   emptyRundown.title = title;
   await getDataProvider().setRundown(emptyRundown.id, emptyRundown);
@@ -692,6 +720,10 @@ export async function createNewRundown(title: string) {
  * @throws if the provided id does not exist
  */
 export async function renameRundown(id: string, title: string) {
+  const titleError = validateRundownTitle(title);
+  if (titleError) throw new InvalidRundownTitleError(titleError);
+  title = title.trim();
+
   const { rundown, commit } = createTransaction({ rundownId: id, mutableRundown: true });
 
   if (rundown.title === title) {
@@ -718,7 +750,7 @@ export async function duplicateExistingRundown(id: string) {
 
   const duplicatedRundown: Rundown = cloneRundown(rundown);
   duplicatedRundown.id = generateId();
-  duplicatedRundown.title = `Copy of ${rundown.title}`;
+  duplicatedRundown.title = getDuplicatedRundownTitle(rundown.title);
   duplicatedRundown.revision = 0;
 
   await dataProvider.setRundown(duplicatedRundown.id, duplicatedRundown);

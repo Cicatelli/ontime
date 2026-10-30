@@ -15,7 +15,6 @@ import { createSessionLog } from './api-data/logs/logs.dao.js';
 // Services
 import * as logger from './api-data/logs/logs.service.js';
 import { integrationRouter } from './api-integration/integration.router.js';
-import { mcpRouter } from './api-mcp/mcp.router.js';
 import { flushPendingWrites, getDataProvider } from './classes/data-provider/DataProvider.js';
 import { portManager } from './classes/port-manager/PortManager.js';
 import { updateRouterPrefix } from './externals.js';
@@ -32,6 +31,12 @@ import { initialiseProject } from './services/project-service/project.service.js
 import { restoreService } from './services/restore-service/restore.service.js';
 import type { RestorePoint } from './services/restore-service/restore.types.js';
 import { runtimeService } from './services/runtime-service/runtime.service.js';
+import {
+  getTeleprompterState,
+  getTeleprompterSync,
+  initTeleprompter,
+  shutdownTeleprompter,
+} from './services/teleprompter-service/teleprompter.service.js';
 import { config, timerConfig } from './setup/config.js';
 import { isProduction } from './setup/environment.js';
 // import utils
@@ -97,7 +102,10 @@ app.get(`${prefix}/ready`, (_req, res) => {
 app.use(`${prefix}/login`, loginRouter); // router for login flow
 app.use(`${prefix}/data`, authenticate, compressData, appRouter); // router for application data
 app.use(`${prefix}/api`, authenticate, integrationRouter); // router for integrations
-app.use(`${prefix}/mcp`, authenticate, mcpRouter); // router for MCP agent integration
+app.use(`${prefix}/mcp`, authenticate, async (req, res, next) => {
+  const { mcpRouter } = await import('./api-mcp/mcp.router.js');
+  mcpRouter(req, res, next);
+});
 
 // serve static external files
 app.use(
@@ -121,9 +129,9 @@ app.get(`${prefix}/timer-legacy`, authenticateAndRedirect, (_req, res) => {
 app.use(`${prefix}`, authenticateAndRedirect, compressedStatic);
 app.use(`${prefix}/*splat`, authenticateAndRedirect, compressedStatic);
 
-// Implement catch all
-app.use((_error, response) => {
-  response.status(400).send('Unhandled request');
+// answers requests no route above matched
+app.use((_req, res) => {
+  res.status(400).send('Unhandled request');
 });
 
 /***************  START SERVICES ***************/
@@ -197,7 +205,10 @@ export const startServer = async (): Promise<{ message: string; serverPort: numb
   expressServer = http.createServer(app);
   const resultPort = await portManager.attachServer(expressServer);
 
-  const showWelcome = await getShowWelcomeDialog(!!restorePoint);
+  const projectId = getDataProvider().getProjectId();
+  const restored = restoreService.forProject(restorePoint, projectId);
+  restoreService.initialise(restored);
+  const showWelcome = await getShowWelcomeDialog(restored?.runtime !== undefined);
   socket.init(expressServer, showWelcome, prefix);
 
   /**
@@ -235,6 +246,8 @@ export const startServer = async (): Promise<{ message: string; serverPort: numb
       direction: SimpleDirection.CountDown,
       name: '',
     },
+    teleprompter: getTeleprompterState(),
+    teleprompterSync: getTeleprompterSync(),
     ping: 1,
   });
 
@@ -245,7 +258,12 @@ export const startServer = async (): Promise<{ message: string; serverPort: numb
   messageService.init(eventStore.set, eventStore.get);
 
   // apply the restore point if it exists
-  runtimeService.init(restorePoint);
+  runtimeService.init(restored?.runtime ?? null);
+  initTeleprompter();
+
+  if (restored?.auxTimers) {
+    auxTimerService.resume(restored.auxTimers);
+  }
 
   const nif = getNetworkInterfaces();
   consoleSuccess(`Local: http://localhost:${resultPort}${prefix}/editor`);
@@ -308,6 +326,8 @@ const shutdownTimeout = 4_000; // 4 seconds
 export async function stopServices(exitCode: number): Promise<void> {
   isShuttingDown = true;
   runtimeService.shutdown();
+  auxTimerService.dispose();
+  shutdownTeleprompter();
 
   // only a crash leaves the session open, recorded first so a failed cleanup cannot turn a stop into a crash
   if (exitCode === 0 || exitCode === 3 || exitCode === 99) {
@@ -336,6 +356,8 @@ export async function stopServices(exitCode: number): Promise<void> {
   if (exitCode === 0 || exitCode === 99) {
     await withTimeout(restoreService.clear(), shutdownTimeout);
     await withTimeout(portManager.shutdown(), shutdownTimeout);
+  } else {
+    await withTimeout(restoreService.flush(), shutdownTimeout);
   }
 
   await withTimeout(

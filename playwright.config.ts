@@ -15,7 +15,7 @@ const passwordServer = {
     ? 'pnpm --filter ontime-ui build && pnpm --filter ontime-server dev'
     : 'pnpm --filter ontime-server dev',
   port: 4002,
-  reuseExistingServer: true,
+  reuseExistingServer: false,
   timeout: 60 * 1000,
   env: {
     PORT: '4002',
@@ -39,24 +39,31 @@ const config: PlaywrightTestConfig = {
   workers: 1,
   reporter: 'html',
   webServer: [
-    isDevMode
-      ? {
-          command: 'turbo run dev',
-          port: 3000,
-          reuseExistingServer: true,
-          timeout: 60 * 1000,
-        }
-      : {
-          command: 'turbo run dev --filter=ontime-server',
-          port: 4001,
-          reuseExistingServer: true,
-          timeout: 60 * 1000,
-        },
+    {
+      command: 'pnpm --filter ontime-server dev',
+      port: 4001,
+      reuseExistingServer: false,
+      timeout: 60 * 1000,
+      env: {
+        PORT: '4001',
+        ONTIME_DATA: join(import.meta.dirname, 'e2e/tests/fixtures/tmp/main-server'),
+      },
+    },
+    ...(isDevMode
+      ? [
+          {
+            command: 'pnpm --filter ontime-ui dev',
+            port: 3000,
+            reuseExistingServer: false,
+            timeout: 60 * 1000,
+          },
+        ]
+      : []),
     passwordServer,
   ],
   use: {
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    screenshot: process.env.CI ? 'off' : 'only-on-failure',
+    video: process.env.CI ? 'off' : 'retain-on-failure',
     viewport: { width: 1920, height: 1080 },
     actionTimeout: 5000,
     baseURL: isDevMode ? 'http://localhost:3000' : 'http://localhost:4001',

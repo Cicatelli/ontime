@@ -75,6 +75,8 @@ const mockState = {
   },
 } as RuntimeState;
 
+// the teleprompter follows rundown changes, which these tests do not look at
+vi.mock('../../services/teleprompter-service/teleprompter.service.js');
 vi.mock('../../classes/data-provider/DataProvider.js', () => {
   return {
     getDataProvider: vi.fn().mockImplementation(() => {
@@ -397,6 +399,7 @@ describe('mutation on runtimeState', () => {
 
     const { rundown, metadata } = rundownCache.get();
     const restorePoint = {
+      projectId: 'project',
       rundownId: rundown.id,
       playback: Playback.Play,
       selectedEventId: 'event1',
@@ -885,15 +888,15 @@ describe('roll mode', () => {
       vi.setSystemTime('jan 1 00:00:01');
       const { rundown, metadata } = rundownCache.get();
       let result = roll(rundown, metadata);
-      expect(result).toStrictEqual({ eventId: '1', didStart: true });
+      expect(result).toStrictEqual({ eventId: '1', didLoad: true, didStart: true });
 
       vi.setSystemTime('jan 1 00:00:02');
       result = roll(rundown, metadata);
-      expect(result).toStrictEqual({ eventId: '2', didStart: true });
+      expect(result).toStrictEqual({ eventId: '2', didLoad: true, didStart: true });
 
       vi.setSystemTime('jan 1 00:00:03:500');
       result = roll(rundown, metadata);
-      expect(result).toStrictEqual({ eventId: '3', didStart: true });
+      expect(result).toStrictEqual({ eventId: '3', didLoad: true, didStart: true });
     });
   });
 
@@ -917,7 +920,7 @@ describe('roll mode', () => {
       const { rundown, metadata } = rundownCache.get();
       load(rundown.entries[3] as PlayableEvent, rundown, metadata);
       const result = roll(rundown, metadata);
-      expect(result).toStrictEqual({ eventId: '3', didStart: false });
+      expect(result).toStrictEqual({ eventId: '3', didLoad: false, didStart: false });
       const state = getState();
       expect(state.timer.phase).toBe(TimerPhase.Pending);
       expect(state.timer.secondaryTimer).toBe(3000);
@@ -928,7 +931,7 @@ describe('roll mode', () => {
       load(rundown.entries[1] as PlayableEvent, rundown, metadata);
       start();
       const result = roll(rundown, metadata);
-      expect(result).toStrictEqual({ eventId: '1', didStart: false });
+      expect(result).toStrictEqual({ eventId: '1', didLoad: false, didStart: false });
       expect(getState().offset.absolute).toBe(-1000);
     });
   });
@@ -954,18 +957,18 @@ describe('roll mode', () => {
       // the current offset after manual play
       const currentOffset = getState().offset.absolute;
       let result = roll(rundown, metadata, getState().offset);
-      expect(result).toStrictEqual({ eventId: '1', didStart: false });
+      expect(result).toStrictEqual({ eventId: '1', didLoad: false, didStart: false });
       // the current offset should be maintain by roll mode when taking over from play
       expect(getState().offset.absolute).toBe(currentOffset);
 
       vi.setSystemTime('jan 1 00:00:01');
       result = roll(rundown, metadata, getState().offset);
-      expect(result).toStrictEqual({ eventId: '2', didStart: true });
+      expect(result).toStrictEqual({ eventId: '2', didLoad: true, didStart: true });
       expect(getState().offset.absolute).toBe(-1000);
 
       vi.setSystemTime('jan 1 00:00:02');
       result = roll(rundown, metadata, getState().offset);
-      expect(result).toStrictEqual({ eventId: '3', didStart: true });
+      expect(result).toStrictEqual({ eventId: '3', didLoad: true, didStart: true });
       expect(getState().offset.absolute).toBe(-1000);
 
       vi.useRealTimers();
