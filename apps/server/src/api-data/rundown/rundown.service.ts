@@ -39,6 +39,7 @@ import {
   createTransaction,
   customFieldMutation,
   getCurrentRundownId,
+  getStoredRundown,
   replaceStoredRundown,
   rundownCache,
   rundownMutation,
@@ -47,7 +48,12 @@ import {
   CustomFieldExistsError,
   CustomFieldNotFoundError,
   CustomFieldTypeChangeError,
+  EntryExistsError,
+  EntryNotFoundError,
+  InvalidCustomFieldLabelError,
+  InvalidEntryOperationError,
   InvalidRundownTitleError,
+  RundownDeleteConflictError,
 } from './rundown.errors.js';
 import { parseRundown, sanitiseCustomFields } from './rundown.parser.js';
 import {
@@ -74,7 +80,7 @@ export async function addEntry(rundownId: string, eventData: EventPostPayload): 
 
   // we allow the user to provide an ID, but make sure it is unique
   if (eventData?.id && Object.hasOwn(rundown.entries, eventData.id)) {
-    throw new Error(`Event with ID ${eventData.id} already exists`);
+    throw new EntryExistsError(eventData.id);
   }
 
   // resolve the parent, either from the payload or inferred from sibling position
@@ -83,7 +89,7 @@ export async function addEntry(rundownId: string, eventData: EventPostPayload): 
   if (parentId) {
     const maybeParent = rundown.entries[parentId];
     if (!maybeParent || !isOntimeGroup(maybeParent)) {
-      throw new Error(`Invalid parent event with ID ${parentId}`);
+      throw new InvalidEntryOperationError(`Invalid parent event with ID ${parentId}`);
     }
     parent = maybeParent;
   }
@@ -108,6 +114,9 @@ export async function addEntry(rundownId: string, eventData: EventPostPayload): 
 
   // generate a fully formed entry from the patch
   const newEntry = generateEvent(rundown, eventData, insertPosition.cueAfterId, parent?.id);
+  if (parent && isOntimeGroup(newEntry)) {
+    throw new InvalidEntryOperationError('Cannot add a group to another group');
+  }
 
   // make mutations to rundown
   rundownMutation.add(rundown, newEntry, parent, insertPosition.afterId, insertPosition.beforeId);
@@ -134,12 +143,12 @@ export async function editEntry(rundownId: string, patch: PatchWithId): Promise<
 
   // could the entry have been deleted?
   if (!currentEntry) {
-    throw new Error('Entry not found');
+    throw new EntryNotFoundError('Entry not found');
   }
 
   // we cannot allow patching to a different type
   if (patch?.type && currentEntry.type !== patch.type) {
-    throw new Error('Invalid event type');
+    throw new InvalidEntryOperationError('Invalid event type');
   }
 
   // if nothing changed, nothing to do
@@ -170,7 +179,7 @@ export async function batchEditEntries(
    * - disallow setting the cue to empty string
    */
   if ('cue' in patch && patch.cue === '') {
-    throw new Error('Cue value invalid');
+    throw new InvalidEntryOperationError('Cue value invalid');
   }
 
   let batchDidInvalidate = false;
@@ -191,7 +200,7 @@ export async function batchEditEntries(
 
     // we cannot allow patching to a different type
     if (patch?.type && currentEntry.type !== patch.type) {
-      throw new Error('Invalid event type');
+      throw new InvalidEntryOperationError('Invalid event type');
     }
 
     // if nothing changed, nothing to do
@@ -274,7 +283,7 @@ export async function reorderEntry(
   const eventTo = rundown.entries[destinationId];
 
   if (!eventFrom || !eventTo) {
-    throw new Error('Event not found');
+    throw new EntryNotFoundError('Event not found');
   }
 
   rundownMutation.reorder(rundown, eventFrom, eventTo, order);
@@ -320,8 +329,11 @@ export async function applyDelay(rundownId: string, delayId: EntryId): Promise<R
 
   // check that delay exists
   const delay = rundown.entries[delayId];
-  if (!delay || !isOntimeDelay(delay)) {
-    throw new Error('Given delay ID not found');
+  if (!delay) {
+    throw new EntryNotFoundError('Given delay ID not found');
+  }
+  if (!isOntimeDelay(delay)) {
+    throw new InvalidEntryOperationError('Given delay ID not found');
   }
 
   // apply the delay and delete the it
@@ -344,12 +356,12 @@ export async function swapEvents(rundownId: string, fromId: EntryId, toId: Entry
 
   // check that both entries exist
   if (!eventFrom || !eventTo) {
-    throw new Error('Event not found');
+    throw new EntryNotFoundError('Event not found');
   }
 
   // we can only swap events
   if (!isOntimeEvent(eventFrom) || !isOntimeEvent(eventTo)) {
-    throw new Error('Both entries must be events');
+    throw new InvalidEntryOperationError('Both entries must be events');
   }
 
   rundownMutation.swap(rundown, eventFrom, eventTo);
@@ -372,7 +384,7 @@ export async function cloneEntry(rundownId: string, entryId: EntryId, options: I
   const originalEntry = rundown.entries[entryId];
 
   if (!originalEntry) {
-    throw new Error('Could not find entry to clone');
+    throw new EntryNotFoundError('Could not find entry to clone');
   }
 
   rundownMutation.clone(rundown, originalEntry, options);
@@ -391,26 +403,26 @@ export async function entryFitGroupDuration(rundownId: string, entryId: EntryId)
   const entry = rundown.entries[entryId];
 
   if (!entry) {
-    throw new Error('Entry not found');
+    throw new EntryNotFoundError('Entry not found');
   }
 
   if (!isOntimeEvent(entry)) {
-    throw new Error('Entry must be an event');
+    throw new InvalidEntryOperationError('Entry must be an event');
   }
 
   const { parent } = entry;
   if (!parent) {
-    throw new Error('Entry must be in a group');
+    throw new InvalidEntryOperationError('Entry must be in a group');
   }
 
   const group = rundown.entries[parent];
 
   if (!group) {
-    throw new Error('Group not found');
+    throw new EntryNotFoundError('Group not found');
   }
 
   if (!isOntimeGroup(group)) {
-    throw new Error('Group is not a group');
+    throw new InvalidEntryOperationError('Group is not a group');
   }
 
   const newDuration = eventDurationMatchGroupTarget({
@@ -420,7 +432,7 @@ export async function entryFitGroupDuration(rundownId: string, entryId: EntryId)
   });
 
   if (newDuration === null) {
-    throw new Error('Unable to fit a duration');
+    throw new InvalidEntryOperationError('Unable to fit a duration');
   }
 
   const newEnd = entry.timeStart + newDuration;
@@ -457,8 +469,11 @@ export async function ungroupEntries(rundownId: string, groupId: EntryId): Promi
   const { rundown, commit } = createTransaction({ rundownId, mutableRundown: true });
 
   const group = rundown.entries[groupId];
-  if (!group || !isOntimeGroup(group)) {
-    throw new Error(`Group with ID ${groupId} not found or is not a group`);
+  if (!group) {
+    throw new EntryNotFoundError(`Group with ID ${groupId} not found or is not a group`);
+  }
+  if (!isOntimeGroup(group)) {
+    throw new InvalidEntryOperationError(`Group with ID ${groupId} not found or is not a group`);
   }
 
   rundownMutation.ungroup(rundown, group);
@@ -477,7 +492,7 @@ export async function createCustomField(customField: CustomField): Promise<Custo
   const key = customFieldLabelToKey(customField.label);
 
   if (!key) {
-    throw new Error('Unable to convert label to a valid key');
+    throw new InvalidCustomFieldLabelError();
   }
 
   const { customFields, commit } = createTransaction({ mutableRundown: false, mutableCustomFields: true });
@@ -644,7 +659,7 @@ export async function loadRundown(id: string) {
     return dataProvider.getProjectRundowns();
   }
 
-  const rundown = dataProvider.getRundown(id);
+  const rundown = getStoredRundown(id);
   const customField = dataProvider.getCustomFields();
   await initRundown(rundown, customField);
   return dataProvider.getProjectRundowns();
@@ -684,7 +699,7 @@ export async function initRundown(
  */
 export async function replaceRundown(rundownId: string, incoming: Readonly<Rundown>) {
   const dataProvider = getDataProvider();
-  const existing = dataProvider.getRundown(rundownId);
+  const existing = getStoredRundown(rundownId);
   const customFields = dataProvider.getCustomFields();
 
   const parsed = parseRundown({ ...incoming, id: rundownId }, customFields);
@@ -746,7 +761,7 @@ export async function renameRundown(id: string, title: string) {
  */
 export async function duplicateExistingRundown(id: string) {
   const dataProvider = getDataProvider();
-  const rundown = dataProvider.getRundown(id);
+  const rundown = getStoredRundown(id);
 
   const duplicatedRundown: Rundown = cloneRundown(rundown);
   duplicatedRundown.id = generateId();
@@ -798,7 +813,7 @@ export async function applyImportToRundown(
 ): Promise<ProjectRundowns> {
   const dataProvider = getDataProvider();
   // throws if the rundown was deleted between preview and apply
-  const existing = dataProvider.getRundown(targetRundownId);
+  const existing = getStoredRundown(targetRundownId);
 
   const source =
     strategy === 'merge'
@@ -837,13 +852,16 @@ export async function createRundownFromImport(
  */
 export async function deleteRundown(id: string) {
   if (isCurrentRundown(id)) {
-    throw new Error('Cannot delete loaded rundown');
+    throw new RundownDeleteConflictError('Cannot delete loaded rundown');
   }
 
   const dataProvider = getDataProvider();
   if (Object.keys(dataProvider.getProjectRundowns()).length <= 1) {
-    throw new Error('Cannot delete the last rundown');
+    throw new RundownDeleteConflictError('Cannot delete the last rundown');
   }
+
+  // throws if the rundown does not exist
+  getStoredRundown(id);
 
   const projectRundowns = await dataProvider.deleteRundown(id);
 

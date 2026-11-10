@@ -9,7 +9,7 @@ import {
   isOntimeGroup,
   isOntimeMilestone,
 } from 'ontime-types';
-import { ComponentProps, ReactNode, memo, useCallback, useEffect, useMemo, useRef } from 'react';
+import { ComponentProps, ReactNode, memo, useCallback, useMemo, useRef } from 'react';
 import {
   ContextProp,
   ItemProps,
@@ -26,6 +26,7 @@ import { useRundownScope } from '../../../common/context/RundownScopeContext';
 import { useRundownWithMetadata, useScopedSelectedEventId } from '../../../common/hooks-query/useRundown';
 import { useFlatEntries } from '../../../common/hooks-query/useRundownById';
 import type { RundownMetadataObject } from '../../../common/utils/rundownMetadata';
+import { useListFollow } from '../../../features/rundown/hooks/useListFollow';
 import { usePersistedRundownOptions } from '../../../features/rundown/rundown.options';
 import { useEventSelection } from '../../../features/rundown/useEventSelection';
 import { AppMode } from '../../../ontimeConfig';
@@ -88,8 +89,6 @@ export default function CuesheetTable({
   const optionsStore = useOptions();
   const { showDelayedTimes, hideTableSeconds, hideIndexColumn } = optionsStore;
 
-  const setScrollHandler = useEventSelection((state) => state.setScrollHandler);
-
   const virtuosoRef = useRef<TableVirtuosoHandle | null>(null);
   const { listeners } = useTableNav();
 
@@ -144,41 +143,16 @@ export default function CuesheetTable({
     setColumnSizing({});
   }, [setColumnSizing]);
 
-  // in Run mode, follow the current event
-  useEffect(() => {
-    if (virtuosoRef.current === null || cuesheetMode !== AppMode.Run || !selectedEventId) {
-      return;
-    }
-
-    const eventIndex = flatRundown.findIndex((event) => event.id === selectedEventId);
-    if (eventIndex === -1) {
-      return;
-    }
-
-    virtuosoRef.current.scrollToIndex({ index: eventIndex, behavior: 'auto', align: 'start', offset: -50 });
-  }, [cuesheetMode, flatRundown, selectedEventId]);
-
-  // Provide an imperative scroll handler for explicit jumps (finder/keyboard)
-  useEffect(() => {
-    const handler = (entryId: string) => {
-      if (virtuosoRef.current === null) {
-        return;
-      }
-
-      const eventIndex = flatRundown.findIndex((event) => event.id === entryId);
-      if (eventIndex === -1) {
-        return;
-      }
-
-      virtuosoRef.current.scrollToIndex({ index: eventIndex, behavior: 'auto', align: 'start', offset: -50 });
-    };
-
-    setScrollHandler(handler);
-
-    return () => {
-      setScrollHandler(null);
-    };
-  }, [flatRundown, setScrollHandler]);
+  // Run follows the current event until the user scrolls or navigates; explicit jumps reveal with the smallest scroll
+  const rowIds = useMemo(() => flatRundown.map((entry) => entry.id), [flatRundown]);
+  const { scrollerRef } = useListFollow({
+    listRef: virtuosoRef,
+    ids: rowIds,
+    liveId: selectedEventId,
+    isRunMode: cuesheetMode === AppMode.Run,
+    offset: 50,
+    behavior: 'auto',
+  });
 
   /**
    * To improve performance on resizing, we memoise the column sizes
@@ -267,6 +241,7 @@ export default function CuesheetTable({
       ) : (
         <TableVirtuoso
           ref={virtuosoRef}
+          scrollerRef={scrollerRef}
           data={flatRundown}
           context={virtuosoContext}
           style={tableRoot === 'editor' ? { paddingLeft: '1rem' } : undefined}
@@ -302,6 +277,31 @@ const CuesheetTableElement = memo(function CuesheetTableElement({
       id='cuesheet'
       style={{ ...injectedStyles, ...context.columnSizeVars }}
       {...context.listeners}
+      onKeyDown={(event) => {
+        const cell = event.target;
+        if (
+          cell instanceof HTMLTableCellElement &&
+          (event.key === 'ArrowUp' || event.key === 'ArrowDown') &&
+          !event.altKey &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.shiftKey
+        ) {
+          const row = cell.parentElement;
+          let nextRow = event.key === 'ArrowUp' ? row?.previousElementSibling : row?.nextElementSibling;
+          if (nextRow?.hasAttribute('data-hidden-delay')) {
+            do {
+              nextRow = event.key === 'ArrowUp' ? nextRow.previousElementSibling : nextRow.nextElementSibling;
+            } while (nextRow?.hasAttribute('data-hidden-delay'));
+            const index = row ? Array.from(row.children).indexOf(cell) : -1;
+            const nextCell = nextRow?.children[index];
+            if (nextCell instanceof HTMLElement) nextCell.focus();
+            event.preventDefault();
+            return;
+          }
+        }
+        context.listeners.onKeyDown(event);
+      }}
       {...virtuosoProps}
     />
   );
@@ -358,6 +358,8 @@ const CuesheetTableRow = memo(function CuesheetTableRow({
       <DelayRow
         key={key}
         duration={entry.duration}
+        options={context.options}
+        visibleColumns={context.visibleColumns}
         injectedStyles={injectedStyles}
         hasCursor={hasCursor}
         {...virtuosoProps}

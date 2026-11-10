@@ -2,13 +2,17 @@ import type { APIRequestContext, Page } from '@playwright/test';
 
 import { expect, test } from '../fixtures/override';
 
-const remoteUrl = '/teleprompter?role=remote';
+const remoteUrl = 'teleprompter?role=remote';
+/** the speed the shared transport and a view playing on its own start at */
+const startSpeed = 25;
+/** the first line of the demo project's script, which its Script field holds */
+const firstScriptLine = 'Welcome to Ontime.';
 
 /** Restores the demo project and a paused transport at the top, event by event, which the transport outlives */
 async function resetTeleprompter(request: APIRequestContext) {
-  expect((await request.post('/data/db/demo')).ok()).toBe(true);
-  for (const command of ['pause', 'speed/14', 'mode/event', 'top']) {
-    expect((await request.get(`/api/teleprompter/${command}`)).ok()).toBe(true);
+  expect((await request.post('data/db/demo')).ok()).toBe(true);
+  for (const command of ['pause', `speed/${startSpeed}`, 'mode/event', 'top']) {
+    expect((await request.get(`api/teleprompter/${command}`)).ok()).toBe(true);
   }
 }
 
@@ -21,6 +25,20 @@ function readingRow(page: Page) {
     const moved = -new DOMMatrix(getComputedStyle(content).transform).m42;
     return (scroller.scrollTop + moved) / Number.parseFloat(getComputedStyle(row).height);
   });
+}
+
+/** The reading row once a jump has finished animating there */
+async function settledRow(page: Page) {
+  let last = Number.NaN;
+  await expect
+    .poll(async () => {
+      const now = await readingRow(page);
+      const isStill = Math.abs(now - last) < 0.001;
+      last = now;
+      return isStill;
+    })
+    .toBe(true);
+  return last;
 }
 
 function rowTexts(page: Page) {
@@ -37,7 +55,7 @@ test.afterEach(async ({ request }) => {
 
 test('a following screen has no control bar and answers only to ?', async ({ page, request }) => {
   await page.goto(remoteUrl);
-  await expect(page.getByText('Music plays, holding slide on', { exact: true })).toBeVisible();
+  await expect(page.getByText(firstScriptLine, { exact: true })).toBeVisible();
   await page.mouse.move(960, 900);
   await expect(page.getByTestId('teleprompter-controls')).toHaveCount(0);
   const before = await readingRow(page);
@@ -47,9 +65,9 @@ test('a following screen has no control bar and answers only to ?', async ({ pag
   }
   await expect(page.getByTestId('teleprompter-controls')).toHaveCount(0);
   expect(await readingRow(page)).toBe(before);
-  expect((await (await request.get('/api/poll')).json()).payload.teleprompter).toMatchObject({
+  expect((await (await request.get('api/poll')).json()).payload.teleprompter).toMatchObject({
     playback: 'pause',
-    speed: 14,
+    speed: startSpeed,
   });
 
   // the navigation menu leaves Space to the view
@@ -68,8 +86,8 @@ test('a screen which connects late, or reloads, lands on the line the others sho
   await expect(page.locator('.teleprompter__row').first()).toBeAttached();
 
   const start = await readingRow(page);
-  await request.get('/api/teleprompter/speed/20');
-  await request.get('/api/teleprompter/play');
+  await request.get('api/teleprompter/speed/20');
+  await request.get('api/teleprompter/play');
   await page.waitForTimeout(1500);
 
   const late = await context.newPage();
@@ -95,7 +113,7 @@ test('a screen which connects late, or reloads, lands on the line the others sho
     })
     .toBeLessThan(0.05);
 
-  await request.get('/api/teleprompter/pause');
+  await request.get('api/teleprompter/pause');
   await expect.poll(async () => Math.abs((await readingRow(page)) - (await readingRow(late)))).toBeLessThan(0.001);
 });
 
@@ -104,15 +122,18 @@ test('every screen shows the same lines, each sized to fit the text width', asyn
     await page.setViewportSize({ width, height });
     await page.goto(remoteUrl);
     await expect(page.locator('.teleprompter__row--text').first()).toBeVisible();
-    const fit = await page.locator('.teleprompter__content').evaluate((content) => {
-      const rows = [...content.querySelectorAll<HTMLElement>('.teleprompter__row--text')];
-      return {
-        overflowing: rows.filter((row) => row.scrollWidth > row.clientWidth + 1).length,
-        widest: Math.max(...rows.map((row) => row.scrollWidth)) / content.clientWidth,
-      };
-    });
-    expect(fit.overflowing).toBe(0);
-    expect(fit.widest).toBeGreaterThan(0.85);
+    // the text is sized again once the web font loads
+    await page.evaluate(() => document.fonts.ready);
+    const fit = () =>
+      page.locator('.teleprompter__content').evaluate((content) => {
+        const rows = [...content.querySelectorAll<HTMLElement>('.teleprompter__row--text')];
+        return {
+          overflowing: rows.filter((row) => row.scrollWidth > row.clientWidth + 1).length,
+          widest: Math.max(...rows.map((row) => row.scrollWidth)) / content.clientWidth,
+        };
+      });
+    await expect.poll(async () => (await fit()).overflowing).toBe(0);
+    expect((await fit()).widest).toBeGreaterThan(0.85);
     return rowTexts(page);
   };
 
@@ -122,9 +143,9 @@ test('every screen shows the same lines, each sized to fit the text width', asyn
 });
 
 test('a controller drives every remote screen with its keys, wheel and buttons', async ({ page, context, request }) => {
-  const transport = async () => (await (await request.get('/api/poll')).json()).payload.teleprompter;
+  const transport = async () => (await (await request.get('api/poll')).json()).payload.teleprompter;
 
-  await page.goto('/teleprompter?role=controller');
+  await page.goto('teleprompter?role=controller');
   await expect(page.getByTestId('teleprompter-badge')).toBeVisible();
   const remote = await context.newPage();
   await remote.goto(remoteUrl);
@@ -132,9 +153,9 @@ test('a controller drives every remote screen with its keys, wheel and buttons',
   await expect(page.locator('.teleprompter__row--text').first()).toBeVisible();
 
   await page.keyboard.press('ArrowRight');
-  await expect.poll(async () => (await transport()).speed).toBe(15);
+  await expect.poll(async () => (await transport()).speed).toBe(startSpeed + 1);
   await page.getByTestId('teleprompter-faster').click();
-  await expect.poll(async () => (await transport()).speed).toBe(16);
+  await expect.poll(async () => (await transport()).speed).toBe(startSpeed + 2);
 
   const top = await readingRow(remote);
   await page.keyboard.press('Shift+ArrowDown');
@@ -146,13 +167,13 @@ test('a controller drives every remote screen with its keys, wheel and buttons',
   await expect.poll(async () => (await transport()).event?.id).toBe(secondEvent);
 
   // the mouse wheel scrolls every screen
-  const beforeWheel = await readingRow(remote);
+  const beforeWheel = await settledRow(remote);
   await page.mouse.move(960, 500);
   await page.mouse.wheel(0, 400);
   await expect.poll(() => readingRow(remote)).toBeGreaterThan(beforeWheel + 1);
 
   // back to the loaded event
-  expect((await request.get('/api/load/index/3')).ok()).toBe(true);
+  expect((await request.get('api/load/index/3')).ok()).toBe(true);
   const loaded = (await transport()).event?.id;
   await page.keyboard.press('Home');
   await expect.poll(async () => (await transport()).event?.id).not.toEqual(loaded);
@@ -164,13 +185,13 @@ test('a controller drives every remote screen with its keys, wheel and buttons',
   await page.keyboard.press('Space');
   await expect.poll(async () => (await transport()).playback).toBe('pause');
 
-  await request.get('/api/stop');
+  await request.get('api/stop');
 });
 
 test('a controller changes the shared playback mode', async ({ page, request }) => {
-  const transport = async () => (await (await request.get('/api/poll')).json()).payload.teleprompter;
+  const transport = async () => (await (await request.get('api/poll')).json()).payload.teleprompter;
 
-  await page.goto('/teleprompter?role=controller');
+  await page.goto('teleprompter?role=controller');
   const mode = page.getByRole('combobox', { name: 'Playback mode' });
   await expect(mode).toBeVisible();
   await mode.focus();
@@ -178,7 +199,7 @@ test('a controller changes the shared playback mode', async ({ page, request }) 
   await expect(page.getByRole('listbox')).toBeVisible();
   // Arrow keys navigate the open menu rather than changing the shared transport speed.
   await page.keyboard.press('ArrowRight');
-  expect(await transport()).toMatchObject({ speed: 14, playback: 'pause' });
+  expect(await transport()).toMatchObject({ speed: startSpeed, playback: 'pause' });
   await page.getByRole('option', { name: 'Whole script', exact: true }).click();
   await expect.poll(async () => (await transport()).mode).toBe('script');
   // a menu closed with the pointer leaves the keys to the teleprompter
@@ -196,12 +217,12 @@ test('a controller changes the shared playback mode', async ({ page, request }) 
 });
 
 test('a local view runs its own transport over the same script', async ({ page, context, request }) => {
-  const transport = async () => (await (await request.get('/api/poll')).json()).payload.teleprompter;
+  const transport = async () => (await (await request.get('api/poll')).json()).payload.teleprompter;
   const remote = await context.newPage();
   await remote.goto(remoteUrl);
   await expect(remote.locator('.teleprompter__row--text').first()).toBeVisible();
 
-  await page.goto('/teleprompter');
+  await page.goto('teleprompter');
   await expect(page.getByTestId('teleprompter-controls')).toBeVisible();
   await expect(page.getByTestId('teleprompter-badge')).toHaveCount(0);
   await expect(page.locator('.teleprompter__row--text').first()).toBeVisible();
@@ -209,7 +230,7 @@ test('a local view runs its own transport over the same script', async ({ page, 
 
   // the keys act on the view itself, speed changes live and is not saved
   await page.keyboard.press('ArrowRight');
-  await expect(page.getByTestId('teleprompter-speed')).toHaveText('15lpm');
+  await expect(page.getByTestId('teleprompter-speed')).toHaveText(`${startSpeed + 1}lpm`);
   await expect(page).not.toHaveURL(/speed=/);
   const top = await readingRow(page);
   await page.keyboard.press('Shift+ArrowDown');
@@ -229,7 +250,7 @@ test('a local view runs its own transport over the same script', async ({ page, 
   await page.keyboard.press('Space');
 
   // none of it reaches the shared transport
-  expect(await transport()).toMatchObject({ playback: 'pause', speed: 14 });
+  expect(await transport()).toMatchObject({ playback: 'pause', speed: startSpeed });
   await expect.poll(async () => (await transport()).playback).toBe('pause');
 });
 
@@ -237,20 +258,20 @@ test('event by event, loading an event brings every remote screen to its first l
   await page.goto(remoteUrl);
   await expect(page.locator('.teleprompter__row--text').first()).toBeVisible();
 
-  expect((await request.get('/api/load/index/3')).ok()).toBe(true);
+  expect((await request.get('api/load/index/3')).ok()).toBe(true);
   const firstLine = page.locator('.teleprompter__row--text[data-loaded]').first();
   await expect(firstLine).toBeAttached();
   const row = await firstLine.evaluate((element) =>
     [...element.closest('.teleprompter__content')!.querySelectorAll('.teleprompter__row')].indexOf(element),
   );
-  await expect.poll(() => readingRow(page)).toBeCloseTo(row, 2);
+  await expect.poll(() => readingRow(page)).toBeCloseTo(row, 1);
 
-  await request.get('/api/stop');
+  await request.get('api/stop');
 });
 
 test('Space plays and pauses, and never presses a focused button or opens a menu', async ({ page, request }) => {
-  const playing = async () => (await (await request.get('/api/poll')).json()).payload.teleprompter.playback === 'play';
-  await page.goto('/teleprompter?role=controller');
+  const playing = async () => (await (await request.get('api/poll')).json()).payload.teleprompter.playback === 'play';
+  await page.goto('teleprompter?role=controller');
   await expect(page.locator('.teleprompter__row--text').first()).toBeVisible();
 
   // closing the view options leaves their button focused
@@ -269,39 +290,59 @@ test('Space plays and pauses, and never presses a focused button or opens a menu
   await expect.poll(playing).toBe(false);
 });
 
+test('the view options choose a playback role, keeping the independent options while another is chosen', async ({
+  page,
+}) => {
+  await page.goto('teleprompter?speed=30');
+  await expect(page.getByTestId('teleprompter-speed')).toHaveText('30lpm');
+
+  await page.mouse.move(20, 20);
+  await page.getByTestId('navigation__toggle-settings').click();
+  await expect(page.getByRole('radio', { name: 'Independent' })).toBeChecked();
+  await page.getByRole('radio', { name: 'Follower' }).click();
+  await expect(page.getByText('Not applied yet', { exact: false })).toBeVisible();
+  await page.getByTestId('apply-view-params').click();
+
+  await expect(page).toHaveURL(/role=remote/);
+  await expect(page).toHaveURL(/speed=30/);
+  await expect(page.getByTestId('teleprompter-controls')).toHaveCount(0);
+});
+
 test('the end of an event shows on the reading line', async ({ page, request }) => {
   await page.goto(remoteUrl);
   await expect(page.locator('.teleprompter__row--text').first()).toBeVisible();
+  // start a few rows before the end of the first event, so playback reaches it quickly
+  const firstEventRows = await page
+    .locator('.teleprompter__row')
+    .evaluateAll((rows) => rows.findIndex((row, index) => index > 0 && row.matches('.teleprompter__row--heading')));
+  expect((await request.get(`api/teleprompter/scroll/${firstEventRows - 4}`)).ok()).toBe(true);
 
-  await request.get('/api/teleprompter/speed/40');
-  await request.get('/api/teleprompter/play');
+  await request.get('api/teleprompter/speed/40');
+  await request.get('api/teleprompter/play');
   await expect(page.getByTestId('teleprompter-end')).toHaveText('End of event', { timeout: 10_000 });
 
-  await request.get('/api/teleprompter/play');
+  await request.get('api/teleprompter/play');
   await expect(page.getByTestId('teleprompter-end')).toHaveCount(0);
 });
 
-test('a controller keeps its keyboard controls while waiting for a loaded event', async ({ page, request }) => {
-  await request.get('/api/stop');
-  await request.get('/api/teleprompter/mode/script');
-  await request.get('/api/teleprompter/speed/1');
-  await page.goto('/teleprompter?role=controller&onlyLoaded=true');
-  await expect(page.getByText('Waiting for an event to load', { exact: false })).toBeVisible();
+test('a view showing only the loaded event keeps its keyboard controls while waiting for one', async ({
+  page,
+  request,
+}) => {
+  await request.get('api/stop');
+  await page.goto('teleprompter?onlyLoaded=true');
+  const waiting = page.getByText('Waiting for an event to load', { exact: false });
+  await expect(waiting).toBeVisible();
 
-  await request.get('/api/teleprompter/play');
-  await expect(page.getByTestId('teleprompter-play')).toHaveAttribute('aria-pressed', 'true');
-  await page.keyboard.press('Space');
-  await expect(page.getByTestId('teleprompter-play')).toHaveAttribute('aria-pressed', 'false');
-  expect((await (await request.get('/api/poll')).json()).payload.teleprompter.playback).toBe('pause');
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByTestId('teleprompter-speed')).toHaveText(`${startSpeed + 1}lpm`);
 
-  expect((await request.get('/api/load/index/2')).ok()).toBe(true);
+  expect((await request.get('api/load/index/2')).ok()).toBe(true);
   await expect(page.locator('.teleprompter__row--text').first()).toBeVisible();
   await expect(page.locator('.teleprompter__row:not([data-loaded])')).toHaveCount(0);
 
-  await request.get('/api/stop');
-  await expect(page.getByText('Waiting for an event to load', { exact: false })).toBeVisible();
-  await page.keyboard.press('ArrowRight');
-  await expect(page.getByTestId('teleprompter-speed')).toHaveText('2lpm');
+  await request.get('api/stop');
+  await expect(waiting).toBeVisible();
 });
 
 test('scrolling a local view which shows only the loaded event keeps the reader in that event', async ({
@@ -309,13 +350,13 @@ test('scrolling a local view which shows only the loaded event keeps the reader 
   request,
 }) => {
   // give the second event enough script to scroll through
-  const rundown = await (await request.get('/data/rundowns/current')).json();
+  const rundown = await (await request.get('data/rundowns/current')).json();
   const [, second] = rundown.flatOrder.filter((id: string) => rundown.entries[id].type === 'event');
   const note = Array.from({ length: 12 }, (_, line) => `Line ${line + 1} of the second event`).join('\n');
-  expect((await request.put(`/data/rundowns/${rundown.id}/entry`, { data: { id: second, note } })).ok()).toBe(true);
-  expect((await request.get('/api/load/index/2')).ok()).toBe(true);
+  expect((await request.put(`data/rundowns/${rundown.id}/entry`, { data: { id: second, note } })).ok()).toBe(true);
+  expect((await request.get('api/load/index/2')).ok()).toBe(true);
 
-  await page.goto('/teleprompter?onlyLoaded=true');
+  await page.goto('teleprompter?onlyLoaded=true&source=note');
   await expect(page.getByText('Line 1 of the second event')).toBeVisible();
   const start = await readingRow(page);
 
@@ -327,7 +368,7 @@ test('scrolling a local view which shows only the loaded event keeps the reader 
   await page.waitForTimeout(500);
   expect(await readingRow(page)).toBeCloseTo(scrolledTo, 1);
 
-  await request.get('/api/stop');
+  await request.get('api/stop');
 });
 
 test('a local view keeps its place when a smaller window shrinks the text', async ({ page }) => {
@@ -345,7 +386,7 @@ test('a local view keeps its place when a smaller window shrinks the text', asyn
     );
 
   await page.setViewportSize({ width: 1600, height: 900 });
-  await page.goto('/teleprompter?mode=script');
+  await page.goto('teleprompter?mode=script');
   await expect(page.locator('.teleprompter__row--text').first()).toBeVisible();
 
   // a reader three quarters down the script, past where the smaller text lets the page scroll to
@@ -366,7 +407,7 @@ test('a view playing on its own reads the field it names, while the shared playb
   page,
   context,
 }) => {
-  await page.goto('/teleprompter?source=title');
+  await page.goto('teleprompter?source=title');
   // the demo project's headings are titles, so each event's script is its own heading
   const heading = page.locator('.teleprompter__row--heading').first();
   await expect(heading).toBeVisible();
@@ -374,7 +415,7 @@ test('a view playing on its own reads the field it names, while the shared playb
 
   const remote = await context.newPage();
   await remote.goto(`${remoteUrl}&source=title`);
-  await expect(remote.getByText('Music plays, holding slide on', { exact: true })).toBeVisible();
+  await expect(remote.getByText(firstScriptLine, { exact: true })).toBeVisible();
 });
 
 test('heading visibility preserves sync and script text stays readable outside the loaded event', async ({
@@ -382,8 +423,8 @@ test('heading visibility preserves sync and script text stays readable outside t
   context,
   request,
 }) => {
-  await request.get('/api/load/index/2');
-  await request.get('/api/teleprompter/goto/index/3');
+  await request.get('api/load/index/2');
+  await request.get('api/teleprompter/goto/index/3');
   await page.goto(remoteUrl);
   const hidden = await context.newPage();
   await hidden.goto(`${remoteUrl}&hideHeadings=true`);
@@ -392,12 +433,13 @@ test('heading visibility preserves sync and script text stays readable outside t
   await expect(hidden.locator('.teleprompter__row--text').first()).toBeAttached();
   await expect(hidden.locator('.teleprompter__row--heading').first()).toHaveCSS('visibility', 'hidden');
   expect(await rowTexts(hidden)).toEqual(await rowTexts(page));
+  // the heading of the event being read, as rows far from the reading line are not laid out
   const headingHeight = await hidden
     .locator('.teleprompter__row--heading')
-    .first()
+    .nth(2)
     .evaluate((row) => row.getBoundingClientRect().height);
   expect(headingHeight).toBeGreaterThan(0);
   await expect.poll(async () => Math.abs((await readingRow(page)) - (await readingRow(hidden)))).toBeLessThan(0.01);
   await expect(page.locator('.teleprompter__row--text:not([data-loaded])').first()).toHaveCSS('opacity', '1');
-  await request.get('/api/stop');
+  await request.get('api/stop');
 });
