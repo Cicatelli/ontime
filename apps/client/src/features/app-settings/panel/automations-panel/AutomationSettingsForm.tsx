@@ -5,7 +5,7 @@ import { maybeAxiosError } from '../../../../common/api/utils';
 import Button from '../../../../common/components/buttons/Button';
 import Info from '../../../../common/components/info/Info';
 import Input from '../../../../common/components/input/input/Input';
-import ExternalLink from '../../../../common/components/link/external-link/ExternalLink';
+import ExternalLink from '../../../../common/components/external-link/ExternalLink';
 import Switch from '../../../../common/components/switch/Switch';
 import Tag from '../../../../common/components/tag/Tag';
 import { preventEscape } from '../../../../common/utils/keyEvent';

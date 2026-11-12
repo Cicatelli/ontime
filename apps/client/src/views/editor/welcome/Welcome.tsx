@@ -10,7 +10,7 @@ import IconButton from '../../../common/components/buttons/IconButton';
 import Checkbox from '../../../common/components/checkbox/Checkbox';
 import * as Editor from '../../../common/components/editor-utils/EditorUtils';
 import Info from '../../../common/components/info/Info';
-import ExternalLink from '../../../common/components/link/external-link/ExternalLink';
+import ExternalLink from '../../../common/components/external-link/ExternalLink';
 import Modal from '../../../common/components/modal/Modal';
 import useShowWelcomeDialog from '../../../common/hooks-query/useShowWelcomeDialog';
 import { useProjectImport } from '../../../common/hooks/useProjectImport';

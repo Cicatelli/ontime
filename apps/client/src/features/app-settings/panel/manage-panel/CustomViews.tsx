@@ -5,7 +5,7 @@ import { restoreDemoView } from '../../../../common/api/customViews';
 import { maybeAxiosError } from '../../../../common/api/utils';
 import Button from '../../../../common/components/buttons/Button';
 import Info from '../../../../common/components/info/Info';
-import ExternalLink from '../../../../common/components/link/external-link/ExternalLink';
+import ExternalLink from '../../../../common/components/external-link/ExternalLink';
 import useCustomViews from '../../../../common/hooks-query/useCustomViews';
 import * as Panel from '../../panel-utils/PanelUtils';
 import CustomViewForm from './CustomViewForm';

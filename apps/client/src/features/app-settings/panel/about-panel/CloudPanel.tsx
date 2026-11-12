@@ -1,6 +1,6 @@
 import { IoCheckmarkCircle } from 'react-icons/io5';
 
-import ExternalLink from '../../../../common/components/link/external-link/ExternalLink';
+import ExternalLink from '../../../../common/components/external-link/ExternalLink';
 import { isOntimeCloud, websiteUrl } from '../../../../externals';
 import * as Panel from '../../panel-utils/PanelUtils';
 

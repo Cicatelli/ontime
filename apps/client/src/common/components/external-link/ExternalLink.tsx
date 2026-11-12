@@ -1,8 +1,8 @@
 import { MouseEvent, ReactNode } from 'react';
 import { HiArrowLongRight } from 'react-icons/hi2';
 
-import { openLink } from '../../../utils/linkUtils';
-import { cx } from '../../../utils/styleUtils';
+import { openLink } from '../../utils/linkUtils';
+import { cx } from '../../utils/styleUtils';
 
 import style from './ExternalLink.module.scss';
 

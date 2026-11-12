@@ -21,9 +21,9 @@ import ScheduleExport from '../common/schedule/ScheduleExport';
 import SuperscriptTime from '../common/superscript-time/SuperscriptTime';
 import { getBackstageOptions, useBackstageOptions } from './backstage.options';
 import { getCardData, getIsPendingStart, getShowProgressBar, isOvertime } from './backstage.utils';
-import { BackstageData, useBackstageData } from './useBackstageData';
+import { BackstageData, useBackstageData } from '../../features/viewers/backstage/useBackstageData';
 
-import './Backstage.scss';
+import '../../features/viewers/backstage/Backstage.scss';
 
 export default function BackstageLoader() {
   const { data, status } = useBackstageData();

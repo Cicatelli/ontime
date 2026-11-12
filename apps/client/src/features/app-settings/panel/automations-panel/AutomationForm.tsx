@@ -10,7 +10,7 @@ import IconButton from '../../../../common/components/buttons/IconButton';
 import { DropdownMenu } from '../../../../common/components/dropdown-menu/DropdownMenu';
 import Info from '../../../../common/components/info/Info';
 import Input from '../../../../common/components/input/input/Input';
-import ExternalLink from '../../../../common/components/link/external-link/ExternalLink';
+import ExternalLink from '../../../../common/components/external-link/ExternalLink';
 import Modal from '../../../../common/components/modal/Modal';
 import RadioGroup from '../../../../common/components/radio-group/RadioGroup';
 import Select from '../../../../common/components/select/Select';

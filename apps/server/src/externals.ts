@@ -9,14 +9,14 @@ import { srcFiles } from './setup/index.js';
 
 // =================================================
 export const password = process.env.SESSION_PASSWORD;
+export const routerPrefix = process.env.ROUTER_PREFIX;
 
 /**
  * Updates the router prefix in the index.html file
  * This is only needed in the cloud environment where the client is not at the root segment
  * ie: https://cloud.getontime.com/client-hash/timer
  */
-export function updateRouterPrefix(prefix: string | undefined = process.env.ROUTER_PREFIX): string {
-  if (!prefix) {
+export function updateRouterPrefix(prefix: string | undefined = routerPrefix): string {  if (!prefix) {
     return '';
   }
 

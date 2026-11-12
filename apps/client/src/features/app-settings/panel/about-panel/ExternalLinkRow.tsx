@@ -1,4 +1,4 @@
-import ExternalLink from '../../../../common/components/link/external-link/ExternalLink';
+import ExternalLink from '../../../../common/components/external-link/ExternalLink';
 import * as Panel from '../../panel-utils/PanelUtils';
 
 import style from './ExternalLinkRow.module.scss';

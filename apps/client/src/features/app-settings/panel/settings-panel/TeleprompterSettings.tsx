@@ -7,7 +7,7 @@ import { maybeAxiosError } from '../../../../common/api/utils';
 import Button from '../../../../common/components/buttons/Button';
 import Info from '../../../../common/components/info/Info';
 import Input from '../../../../common/components/input/input/Input';
-import ExternalLink from '../../../../common/components/link/external-link/ExternalLink';
+import ExternalLink from '../../../../common/components/external-link/ExternalLink';
 import Select from '../../../../common/components/select/Select';
 import useCustomFields from '../../../../common/hooks-query/useCustomFields';
 import useTeleprompterSettings from '../../../../common/hooks-query/useTeleprompterSettings';

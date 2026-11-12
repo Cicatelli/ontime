@@ -9,7 +9,7 @@ import Button from '../buttons/Button';
 import Dialog from '../dialog/Dialog';
 import Info from '../info/Info';
 import Input from '../input/input/Input';
-import ExternalLink from '../link/external-link/ExternalLink';
+import ExternalLink from '../external-link/ExternalLink';
 import Select from '../select/Select';
 
 import style from './RedirectClientModal.module.scss';

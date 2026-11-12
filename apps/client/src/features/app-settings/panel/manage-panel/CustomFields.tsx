@@ -6,7 +6,7 @@ import { deleteCustomField, editCustomField, postCustomField } from '../../../..
 import Button from '../../../../common/components/buttons/Button';
 import Info from '../../../../common/components/info/Info';
 import AppLink from '../../../../common/components/link/app-link/AppLink';
-import ExternalLink from '../../../../common/components/link/external-link/ExternalLink';
+import ExternalLink from '../../../../common/components/external-link/ExternalLink';
 import useCustomFields from '../../../../common/hooks-query/useCustomFields';
 import { customFieldsDocsUrl } from '../../../../externals';
 import * as Panel from '../../panel-utils/PanelUtils';

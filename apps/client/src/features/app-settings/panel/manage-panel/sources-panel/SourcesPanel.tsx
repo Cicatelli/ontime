@@ -23,7 +23,7 @@ import {
 import { maybeAxiosError } from '../../../../../common/api/utils';
 import Button from '../../../../../common/components/buttons/Button';
 import Info from '../../../../../common/components/info/Info';
-import ExternalLink from '../../../../../common/components/link/external-link/ExternalLink';
+import ExternalLink from '../../../../../common/components/external-link/ExternalLink';
 import Modal from '../../../../../common/components/modal/Modal';
 import { useLoadedRundown } from '../../../../../common/hooks-query/useLoadedRundown';
 import { removeFileExtension, validateExcelImport } from '../../../../../common/utils/uploadUtils';

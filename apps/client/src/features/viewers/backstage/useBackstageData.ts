@@ -1,11 +1,11 @@
 import { CustomFields, OntimeEntry, ProjectData, Settings } from 'ontime-types';
 
-import useCustomFields from '../../common/hooks-query/useCustomFields';
-import { useLoadedFlatRundown } from '../../common/hooks-query/useLoadedRundown';
-import useProjectData from '../../common/hooks-query/useProjectData';
-import useSettings from '../../common/hooks-query/useSettings';
-import { useViewOptionsStore } from '../../common/stores/viewOptions';
-import { ViewData, aggregateQueryStatus } from '../utils/viewLoader.utils';
+import useCustomFields from '../../../common/hooks-query/useCustomFields';
+import { useLoadedFlatRundown } from '../../../common/hooks-query/useLoadedRundown';
+import useProjectData from '../../../common/hooks-query/useProjectData';
+import useSettings from '../../../common/hooks-query/useSettings';
+import { useViewOptionsStore } from '../../../common/stores/viewOptions';
+import { ViewData, aggregateQueryStatus } from '../../../views/utils/viewLoader.utils';
 
 export interface BackstageData {
   events: OntimeEntry[];
