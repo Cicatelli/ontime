@@ -1,5 +1,5 @@
 import { OntimeEvent, isOntimeEvent } from 'ontime-types';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
 import ScrollArea from '../../../common/components/scroll-area/ScrollArea';
@@ -61,7 +61,8 @@ function TitleListContent({ mode, eventData, selectedEventId, resolvedFollowEven
   'use memo';
 
   const virtuosoRef = useRef<VirtuosoHandle | null>(null);
-  const scrollParentRef = useRef<HTMLDivElement | null>(null);
+  // held in state so the list renders once the scroll parent mounts, a ref would leave virtuoso without a parent
+  const [scrollParent, setScrollParent] = useState<HTMLDivElement | null>(null);
   const selectAndRevealEntry = useSelectAndRevealEntry();
 
   // Calculate current event info
@@ -84,7 +85,8 @@ function TitleListContent({ mode, eventData, selectedEventId, resolvedFollowEven
 
   // Auto-scroll to keep current item at sticky position using Virtuoso
   useEffect(() => {
-    if (!virtuosoRef.current) return;
+    // the list mounts after its scroll parent, which re-runs this to follow on mount
+    if (!scrollParent || !virtuosoRef.current) return;
 
     const indexToFollow = followIndex !== -1 ? followIndex : currentEventInfo.index;
     if (indexToFollow === -1) return;
@@ -99,7 +101,7 @@ function TitleListContent({ mode, eventData, selectedEventId, resolvedFollowEven
       behavior: 'smooth',
       offset: -50,
     });
-  }, [currentEventInfo.index, followIndex, mode]);
+  }, [currentEventInfo.index, followIndex, mode, scrollParent]);
 
   // Virtuoso item renderer
   const itemContent = useCallback(
@@ -123,19 +125,21 @@ function TitleListContent({ mode, eventData, selectedEventId, resolvedFollowEven
   );
 
   return (
-    <ScrollArea className={style.container} ref={scrollParentRef}>
-      <Virtuoso
-        ref={virtuosoRef}
-        data={eventData}
-        computeItemKey={(_index, entry) => entry.id}
-        itemContent={itemContent}
-        increaseViewportBy={{ top: 200, bottom: 200 }}
-        customScrollParent={scrollParentRef.current ?? undefined}
-        components={{
-          List: VirtuosoListComponent,
-          Footer: TitleListFooter,
-        }}
-      />
+    <ScrollArea className={style.container} ref={setScrollParent}>
+      {scrollParent && (
+        <Virtuoso
+          ref={virtuosoRef}
+          data={eventData}
+          computeItemKey={(_index, entry) => entry.id}
+          itemContent={itemContent}
+          increaseViewportBy={{ top: 200, bottom: 200 }}
+          customScrollParent={scrollParent}
+          components={{
+            List: VirtuosoListComponent,
+            Footer: TitleListFooter,
+          }}
+        />
+      )}
     </ScrollArea>
   );
 }
