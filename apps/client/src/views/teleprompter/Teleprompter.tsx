@@ -60,12 +60,15 @@ export default function Teleprompter() {
 
   const { role } = options;
   const flip = composeFlip(options.flipH, options.flipV, isMirrored);
-  // only a view playing on its own reads a field of its own, so the shared playback shows the same lines everywhere
   const ownSource = role === 'local' && options.source !== projectSource ? options.source : undefined;
   const sourceLabel = getScriptSourceLabel(ownSource ?? settings.script, customFields);
   const emptyText = ownSource
     ? `There is no script in ${sourceLabel}. Choose another field in Customise`
     : `There is no script in ${sourceLabel}. Change it in Settings\u00a0›\u00a0Teleprompter`;
+
+  const isController = role === 'controller';
+  const isRemote = role === 'remote';
+  const isLocal = role === 'local';
 
   return (
     <div
@@ -73,37 +76,58 @@ export default function Teleprompter() {
       data-testid='teleprompter-view'
     >
       <ViewParamsEditor target={OntimeView.Teleprompter} viewOptions={getTeleprompterOptions(customFields, settings)} />
-      {role === 'local' ? (
+      {isLocal ? (
         <LocalTeleprompter options={options} source={ownSource} emptyText={emptyText} onToggleHelp={toggleHelp} />
       ) : (
         <SharedTeleprompter options={options} emptyText={emptyText} onToggleHelp={toggleHelp} />
       )}
-      {role === 'controller' && (
-        <div className='teleprompter__badge' data-testid='teleprompter-badge'>
-          Controller · shared playback
+      {isController && (
+        <div className='teleprompter__chips'>
+          <BlackoutController />
+          <div className='teleprompter__badge' data-testid='teleprompter-badge'>
+            Controller · shared playback
+          </div>
         </div>
       )}
+      {isRemote && <BlackoutFollow />}
       <HelpOverlay isOpen={showHelp} onClose={() => setShowHelp(false)} note={helpNotes[role]}>
-        {role !== 'remote' && <TransportShortcuts />}
+        {!isRemote && <TransportShortcuts isController={isController} />}
       </HelpOverlay>
+    </div>
+  );
+}
+
+function BlackoutFollow() {
+  const isBlackout = useTeleprompterState().blackout === 'on';
+  // kept mounted, so it fades both ways
+  return (
+    <div
+      className={cx(['teleprompter__blackout', isBlackout && 'teleprompter__blackout--active'])}
+      data-testid='teleprompter-blackout'
+    />
+  );
+}
+
+function BlackoutController() {
+  const isBlackout = useTeleprompterState().blackout === 'on';
+  return (
+    <div
+      className={cx(['teleprompter__blackout-chip', isBlackout && 'teleprompter__blackout-chip--active'])}
+      data-testid='teleprompter-blackout-chip'
+    >
+      Blackout
     </div>
   );
 }
 
 interface TeleprompterViewProps {
   options: TeleprompterOptions;
-  /** what the view says when the field it reads holds no script */
   emptyText: string;
   onToggleHelp: () => void;
 }
 
 const sendCommand = (command: TeleprompterViewCommand) => sendSocket('teleprompter', toTeleprompterPayload(command));
 
-/**
- * Shows the transport the server holds, which Companion and the integration API drive
- * It shows what the server publishes, and reads from the position the server calculates, in rows of the script
- * A controller also sends commands, which reach every following view
- */
 function SharedTeleprompter({ options, emptyText, onToggleHelp }: TeleprompterViewProps) {
   const { data: script, status } = useTeleprompterScript();
   const state = useTeleprompterState();
@@ -116,20 +140,16 @@ function SharedTeleprompter({ options, emptyText, onToggleHelp }: TeleprompterVi
       status={status}
       state={state}
       sync={sync}
-      // until the script and the sync count the same rows, the screen holds its place
       isBehind={script?.revision !== sync.revision}
       options={options}
       emptyText={emptyText}
       onCommand={isController ? sendCommand : undefined}
+      isController={isController}
       onToggleHelp={onToggleHelp}
     />
   );
 }
 
-/**
- * Runs the same transport in the browser, over the same script or one read from another field
- * @param source - the field to read instead of the project's
- */
 function LocalTeleprompter({
   options,
   source,
@@ -171,18 +191,15 @@ const waitingMessages = {
 
 interface ScriptContentProps {
   script: TeleprompterScript | undefined;
-  /** A local transport already owns the layout of its script. */
   scriptLayout?: TeleprompterLayout;
   status: 'pending' | 'error' | 'success';
-  /** what the view shows */
   state: TeleprompterState;
-  /** where the view reads from, in rows of the script */
   sync: TeleprompterSync;
-  /** the sync refers to a script the view has not received yet */
   isBehind: boolean;
   options: TeleprompterOptions;
   emptyText: string;
   onCommand?: (command: TeleprompterViewCommand) => void;
+  isController?: boolean;
   onUserScroll?: (anchor: TeleprompterAnchor) => void;
   onToggleHelp: () => void;
 }
@@ -197,6 +214,7 @@ function ScriptContent({
   options,
   emptyText,
   onCommand,
+  isController = false,
   onUserScroll,
   onToggleHelp,
 }: ScriptContentProps) {
@@ -208,7 +226,6 @@ function ScriptContent({
   // a new array of events would lay out the rows and size the text again, so it changes only with what it shows
   const shown = useMemo(() => {
     if (!script) return null;
-    // a field with no script says so before what the loaded event holds
     if (!options.onlyLoaded || script.events.length === 0) return { events: script.events };
     return filterToLoadedEvent(script.events, loadedEventId);
   }, [script, loadedEventId, options.onlyLoaded]);
@@ -225,6 +242,7 @@ function ScriptContent({
       state={state}
       loadedEvent={getLoadedEvent(script, loadedEventId)}
       onCommand={onCommand}
+      isController={isController}
       onToggleHelp={onToggleHelp}
     />
   ) : null;
@@ -257,7 +275,6 @@ function ScriptContent({
   );
 }
 
-/** Waiting views still control playback, even though there are no rows to show or measure. */
 function WaitingScript({
   text,
   onCommand,
@@ -280,11 +297,6 @@ function getLoadedEvent(script: TeleprompterScript, loadedEventId: EntryId | nul
   return { id: event.id, cue: event.cue, title: event.title, inScript: true };
 }
 
-/**
- * Keys every teleprompter view answers to, whatever its role
- * - ? opens the shortcut list
- * - outside a dialog, Space never presses a focused button or opens a menu: on a controller or a local view it only plays and pauses
- */
 function useViewKeys(onToggleHelp: () => void) {
   const handler = useRef(onToggleHelp);
   // keeps the latest handler for the listener, which is registered once

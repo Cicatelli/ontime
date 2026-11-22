@@ -10,6 +10,7 @@ import {
   IoPlaySkipForward,
   IoRemove,
 } from 'react-icons/io5';
+import { LuMonitorOff } from 'react-icons/lu';
 
 import Button from '../../../common/components/buttons/Button';
 import IconButton from '../../../common/components/buttons/IconButton';
@@ -20,13 +21,13 @@ import { cx } from '../../../common/utils/styleUtils';
 import { speedStep, type TeleprompterViewCommand } from '../teleprompter.keymap';
 import { modeLabels } from '../teleprompter.options';
 
-/** The event Ontime has loaded, as the teleprompter script names it */
 export type LoadedEvent = { id: string; cue: string; title: string; inScript: boolean };
 
 interface ControlOverlayProps {
   state: TeleprompterState;
   loadedEvent: LoadedEvent | null;
   onCommand: (command: TeleprompterViewCommand) => void;
+  isController: boolean;
   onToggleHelp: () => void;
 }
 
@@ -81,13 +82,19 @@ function ControlButton({
   );
 }
 
-/** Playback controls fade while idle and remain visible while hovered or focused. */
-export default function ControlOverlay({ state, loadedEvent, onCommand, onToggleHelp }: ControlOverlayProps) {
+export default function ControlOverlay({
+  state,
+  loadedEvent,
+  onCommand,
+  isController,
+  onToggleHelp,
+}: ControlOverlayProps) {
   const isActive = useFadeOutOnInactivity(true);
   const [isHovered, setIsHovered] = useState(false);
   const [hasFocus, setHasFocus] = useState(false);
   const isVisible = isActive || isHovered || hasFocus;
   const isPlaying = state.playback === 'play';
+  const isBlackout = state.blackout === 'on';
   const canGoToLoaded = loadedEvent !== null && loadedEvent.inScript && state.event?.id !== loadedEvent.id;
   const loadedLabel = getGoToLoadedLabel(loadedEvent, canGoToLoaded);
   const loadedName = loadedEvent?.cue || loadedEvent?.title;
@@ -117,7 +124,7 @@ export default function ControlOverlay({ state, loadedEvent, onCommand, onToggle
           }}
           data-testid='teleprompter-play'
         >
-          {isPlaying ? <IoPause /> : <IoPlay />}
+          {isPlaying ? <IoPause /> : <PlayIcon isReadingBack={state.speed < 0} />}
         </Button>
         <ControlButton
           label='Previous event (Shift + Up arrow)'
@@ -144,6 +151,26 @@ export default function ControlOverlay({ state, loadedEvent, onCommand, onToggle
         >
           <IoLocate />
         </ControlButton>
+        {isController && (
+          <Tooltip
+            text={isBlackout ? 'Show Followers (B)' : 'Black out Followers (B)'}
+            render={
+              <Button
+                variant={isBlackout ? 'primary' : 'subtle-white'}
+                size='large'
+                aria-pressed={isBlackout}
+                aria-label='Black out Followers'
+                onClick={(event) => {
+                  blurOnPointer(event);
+                  onCommand({ type: 'blackout', blackout: 'toggle' });
+                }}
+                data-testid='teleprompter-blackout-toggle'
+              />
+            }
+          >
+            <LuMonitorOff />
+          </Tooltip>
+        )}
       </div>
 
       <div className='teleprompter__mode' data-testid='teleprompter-playback-mode'>
@@ -164,8 +191,8 @@ export default function ControlOverlay({ state, loadedEvent, onCommand, onToggle
 
       <div className='teleprompter__speed-control' role='group' aria-label='Speed'>
         <ControlButton
-          label='Slower (Left arrow)'
-          accessibleLabel='Slower'
+          label='Speed down (Left arrow)'
+          accessibleLabel='Speed down'
           onPress={() => onCommand({ type: 'speedBy', value: -speedStep })}
           testId='teleprompter-slower'
         >
@@ -176,8 +203,8 @@ export default function ControlOverlay({ state, loadedEvent, onCommand, onToggle
           <span className='teleprompter__speed-unit'>lpm</span>
         </div>
         <ControlButton
-          label='Faster (Right arrow)'
-          accessibleLabel='Faster'
+          label='Speed up (Right arrow)'
+          accessibleLabel='Speed up'
           onPress={() => onCommand({ type: 'speedBy', value: speedStep })}
           testId='teleprompter-faster'
         >
@@ -189,6 +216,10 @@ export default function ControlOverlay({ state, loadedEvent, onCommand, onToggle
       </ControlButton>
     </div>
   );
+}
+
+function PlayIcon({ isReadingBack }: { isReadingBack: boolean }) {
+  return <IoPlay style={isReadingBack ? { scale: '-1' } : undefined} />;
 }
 
 function getGoToLoadedLabel(loadedEvent: LoadedEvent | null, canGoToLoaded: boolean): string {

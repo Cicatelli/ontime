@@ -33,11 +33,6 @@ const emptyScript = { events: noEvents, layout: makeTeleprompterLayout(noEvents)
 /** How often playback settles at its end and checks the event being read, as the server does with its clock */
 const tickMs = 1000;
 
-/**
- * The same transport the controllers drive, held in the browser for a view of its own
- * @returns the transport, the sync the view animates from, as the server describes it for its screens,
- * and the teleprompter it describes, which the view shows
- */
 export function useLocalTransport({ events, initialMode, initialSpeed, loadedEventId }: UseLocalTransportArgs) {
   const layout = useMemo(() => makeTeleprompterLayout(events), [events]);
   const [transport, setTransport] = useState<TeleprompterTransport>(() => ({
@@ -47,6 +42,7 @@ export function useLocalTransport({ events, initialMode, initialSpeed, loadedEve
     anchor: null,
     at: 0,
     ended: null,
+    blackout: 'off',
   }));
   // reading on into another event renders again, to describe the event being read
   const [, setReaderId] = useState<EntryId | null>(null);
@@ -70,6 +66,8 @@ export function useLocalTransport({ events, initialMode, initialSpeed, loadedEve
 
   const handleCommand = useCallback(
     (command: TeleprompterViewCommand) => {
+      // blackout only hides the screens following the shared playback
+      if (command.type === 'blackout') return;
       if (command.type !== 'goto') return apply(command);
       // going back to the loaded event does nothing while nothing is loaded
       const { loadedEventId } = latest.current;
@@ -78,7 +76,6 @@ export function useLocalTransport({ events, initialMode, initialSpeed, loadedEve
     [apply],
   );
 
-  /** Scrolling by hand moves the position, to a place the view found in the rows it shows */
   const moveToAnchor = useCallback((anchor: TeleprompterAnchor) => {
     const { layout } = latest.current;
     setTransport((current) => {

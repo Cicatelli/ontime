@@ -1,13 +1,11 @@
 import type { TeleprompterCommand } from 'ontime-utils';
 
-/** What a view's keys and buttons do: they reach events by moving through them, or back to the loaded one */
 export type TeleprompterViewCommand =
   | Exclude<TeleprompterCommand, { type: 'goto' }>
   | { type: 'goto'; target: 'loaded' };
 
 export type TeleprompterKeyAction =
   | { type: 'command'; command: TeleprompterViewCommand }
-  /** a screen of lines, which only the view knows */
   | { type: 'page'; direction: 1 | -1 };
 
 export type TeleprompterKeyEvent = {
@@ -33,8 +31,6 @@ export function resolveTeleprompterKey(event: TeleprompterKeyEvent): Teleprompte
   switch (event.code) {
     case 'Space':
       return event.repeat ? null : command({ type: 'toggle' });
-    // Shift is the coarser step on both axes: a bigger speed change sideways,
-    // a whole event rather than a line vertically.
     case 'ArrowDown':
       return command(event.shiftKey ? { type: 'next' } : { type: 'scroll', lines: 1 });
     case 'ArrowUp':
@@ -48,17 +44,19 @@ export function resolveTeleprompterKey(event: TeleprompterKeyEvent): Teleprompte
     case 'ArrowLeft':
       return command({ type: 'speedBy', value: event.shiftKey ? -coarseSpeedStep : -speedStep });
     case 'Home':
-      return command({ type: 'top' });
+      return event.repeat ? null : command({ type: 'top' });
   }
 
-  // Character bindings use key so they work across keyboard layouts.
   switch (event.key) {
     case 'l':
     case 'L':
-      return command({ type: 'goto', target: 'loaded' });
+      return event.repeat ? null : command({ type: 'goto', target: 'loaded' });
     case 'm':
     case 'M':
-      return command({ type: 'mode', mode: 'toggle' });
+      return event.repeat ? null : command({ type: 'mode', mode: 'toggle' });
+    case 'b':
+    case 'B':
+      return event.repeat ? null : command({ type: 'blackout', blackout: 'toggle' });
   }
 
   return null;
